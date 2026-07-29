@@ -7,50 +7,38 @@ workflows:
       node: 20
       java: 17
       vars:
-        NODE_OPTIONS: "--max-old-space-size=4096"
+        NODE_OPTIONS: "--max-old-space-size=8192"
         CI: "1"
     scripts:
-      - name: Configurar e instalar dependencias
+      - name: Configurar entorno e instalar dependencias
         script: |
           echo "node-linker=hoisted" > .npmrc
           echo "shamefully-hoist=true" >> .npmrc
-          rm -rf node_modules
+          rm -rf node_modules android
           npx pnpm@9 install --no-frozen-lockfile
-      - name: Corregir punto de entrada de la App
+      - name: Preparar punto de entrada
         script: |
           node -e '
           const fs = require("fs");
           const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-          const hasAppDir = fs.existsSync("app");
-          const hasExpoRouter = pkg.dependencies && pkg.dependencies["expo-router"];
+          const hasAppFolder = fs.existsSync("app");
+          const hasRouterPkg = pkg.dependencies && pkg.dependencies["expo-router"];
 
-          if (hasAppDir || hasExpoRouter) {
-            console.log("--> Proyecto configurado como Expo Router");
+          if (hasAppFolder || hasRouterPkg) {
             pkg.main = "expo-router/entry";
-            // Eliminar App.js generado previamente para que no bloquee el enrutador
-            if (fs.existsSync("App.js")) fs.unlinkSync("App.js");
-            if (fs.existsSync("App.tsx")) fs.unlinkSync("App.tsx");
-          } else {
-            console.log("--> Proyecto configurado como Expo Estándar");
+          } else if (!pkg.main) {
             pkg.main = "node_modules/expo/AppEntry.js";
-            if (!fs.existsSync("App.js") && !fs.existsSync("App.tsx")) {
-              const candidates = ["src/App.tsx", "src/App.js", "src/app.tsx", "src/app.js", "app.tsx", "app.js", "src/index.tsx", "src/index.js", "index.tsx", "index.js"];
-              const target = candidates.find(f => fs.existsSync(f));
-              if (target) {
-                const clean = "./" + target.replace(/\\/g, "/").replace(/\.(tsx|jsx|js|ts)$/, "");
-                fs.writeFileSync("App.js", `import App from "${clean}";\nexport default App;\n`);
-              }
-            }
           }
           fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
           '
-      - name: Generar carpeta Android
+      - name: Generar carpeta Android nativa
         script: |
-          npx expo prebuild --platform android --no-install
+          npx expo prebuild --platform android --clean
       - name: Generar APK Release
         script: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease -x lint
+          export NODE_OPTIONS="--max-old-space-size=8192"
+          ./gradlew assembleRelease -x lint --no-daemon
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
