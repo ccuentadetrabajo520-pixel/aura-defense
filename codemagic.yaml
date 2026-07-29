@@ -9,10 +9,10 @@ workflows:
     scripts:
       - name: Instalar dependencias
         script: |
-          npx pnpm@9 install --no-frozen-lockfile
+          npx pnpm@9 install --no-frozen-lockfile --shamefully-hoist
       - name: Generar carpeta Android
         script: |
-          npx pnpm@9 exec expo prebuild --platform android
+          npx expo prebuild --platform android
       - name: Generar APK Release
         script: |
           cd android
