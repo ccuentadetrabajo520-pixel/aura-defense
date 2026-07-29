@@ -66,6 +66,7 @@ export default function TelemetryScreen() {
   const insets = useSafeAreaInsets();
   const { scanState, threats, threatCount } = useSecurity();
 
+  // Las barras de hilos siempre animan — isActive solo cambia la etiqueta del indicador
   const isActive = scanState === 'scanning' || scanState === 'complete';
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -83,94 +84,94 @@ export default function TelemetryScreen() {
       ]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Header */}
+      {/* Cabecera */}
       <View style={styles.pageHeader}>
-        <Text style={[styles.pageTitle, { color: colors.foreground }]}>TELEMETRY</Text>
+        <Text style={[styles.pageTitle, { color: colors.foreground }]}>TELEMETRÍA</Text>
         <View style={[styles.livePill, { borderColor: `${isActive ? colors.cyan : colors.border}`, backgroundColor: `${isActive ? colors.cyan : colors.mutedForeground}18` }]}>
           <View style={[styles.liveDot, { backgroundColor: isActive ? colors.cyan : colors.mutedForeground }]} />
           <Text style={[styles.liveText, { color: isActive ? colors.cyan : colors.mutedForeground }]}>
-            {isActive ? 'LIVE FEED' : 'STANDBY'}
+            {isActive ? 'EN VIVO' : 'EN ESPERA'}
           </Text>
         </View>
       </View>
 
-      {/* Metric cards */}
+      {/* Tarjetas de métricas */}
       <View style={styles.metricsGrid}>
         <MetricCard
           icon="cpu-64-bit"
-          label="CPU CORES"
+          label="NÚCLEOS CPU"
           value="8"
           sub="ARM Cortex-A78"
           accent={colors.cyan}
         />
         <MetricCard
           icon="memory"
-          label="ANALYSIS MEM"
+          label="MEM ANÁLISIS"
           value="147 MB"
-          sub="Heap allocated"
+          sub="Heap asignado"
           accent={colors.purple}
         />
         <MetricCard
           icon="bug"
-          label="THREATS"
+          label="AMENAZAS"
           value={`${threatCount}`}
-          sub="Active detections"
+          sub="Detecciones activas"
           accent={threatCount > 0 ? colors.threat : colors.primary}
         />
         <MetricCard
           icon="shield-alert"
-          label="CRITICAL"
+          label="CRÍTICO"
           value={`${critical}`}
-          sub="Immediate action"
+          sub="Acción inmediata"
           accent={critical > 0 ? colors.threat : colors.primary}
         />
       </View>
 
-      {/* Thread graph */}
-      <TelemetryGraph isActive={isActive} />
+      {/* Gráfico de hilos — siempre activo */}
+      <TelemetryGraph isActive={true} />
 
-      {/* CPU breakdown */}
+      {/* Carga del motor */}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.panelHeader}>
           <MaterialCommunityIcons name="chart-bar" size={14} color={colors.cyan} />
-          <Text style={[styles.panelTitle, { color: colors.cyan }]}>ANALYSIS ENGINE LOAD</Text>
+          <Text style={[styles.panelTitle, { color: colors.cyan }]}>CARGA DEL MOTOR DE ANÁLISIS</Text>
         </View>
         <View style={styles.panelBody}>
-          <SectionRow label="PACKAGE SCANNER" value="38%" barPct={38} color={colors.primary} />
-          <SectionRow label="SIGNATURE MATCHER" value="24%" barPct={24} color={colors.cyan} />
-          <SectionRow label="NETWORK IDS" value="17%" barPct={17} color={colors.purple} />
-          <SectionRow label="HEURISTICS ENGINE" value="12%" barPct={12} color={colors.warning} />
-          <SectionRow label="EXIF ANALYZER" value="9%" barPct={9} color={colors.primary} />
+          <SectionRow label="ESCÁNER DE PAQUETES" value="38%" barPct={38} color={colors.primary} />
+          <SectionRow label="COMPARADOR DE FIRMAS" value="24%" barPct={24} color={colors.cyan} />
+          <SectionRow label="IDS DE RED" value="17%" barPct={17} color={colors.purple} />
+          <SectionRow label="MOTOR HEURÍSTICO" value="12%" barPct={12} color={colors.warning} />
+          <SectionRow label="ANALIZADOR EXIF" value="9%" barPct={9} color={colors.primary} />
         </View>
       </View>
 
-      {/* Threat breakdown */}
+      {/* Matriz de severidad */}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.panelHeader}>
           <MaterialCommunityIcons name="alert-circle" size={14} color={colors.threat} />
-          <Text style={[styles.panelTitle, { color: colors.threat }]}>THREAT SEVERITY MATRIX</Text>
+          <Text style={[styles.panelTitle, { color: colors.threat }]}>MATRIZ DE SEVERIDAD DE AMENAZAS</Text>
         </View>
         <View style={styles.panelBody}>
           <SectionRow
-            label="CRITICAL"
+            label="CRÍTICO"
             value={`${critical}`}
             barPct={critical * 20}
             color={colors.threat}
           />
           <SectionRow
-            label="HIGH"
+            label="ALTO"
             value={`${high}`}
             barPct={high * 20}
             color={colors.warning}
           />
           <SectionRow
-            label="MEDIUM"
+            label="MEDIO"
             value={`${medium}`}
             barPct={medium * 20}
             color={colors.cyan}
           />
           <SectionRow
-            label="PURGED"
+            label="PURGADAS"
             value={`${threats.filter((t) => t.purged).length}`}
             barPct={Math.min(threats.filter((t) => t.purged).length * 20, 100)}
             color={colors.primary}
@@ -178,17 +179,17 @@ export default function TelemetryScreen() {
         </View>
       </View>
 
-      {/* System info */}
+      {/* Diagnóstico del sistema */}
       <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <View style={styles.panelHeader}>
           <MaterialCommunityIcons name="information-outline" size={14} color={colors.purple} />
-          <Text style={[styles.panelTitle, { color: colors.purple }]}>RUNTIME DIAGNOSTICS</Text>
+          <Text style={[styles.panelTitle, { color: colors.purple }]}>DIAGNÓSTICO DEL SISTEMA</Text>
         </View>
         <View style={styles.panelBody}>
-          <SectionRow label="SCAN ENGINE" value="v2.1.0" barPct={100} color={colors.primary} />
-          <SectionRow label="SIG DB ENTRIES" value="3,847" barPct={80} color={colors.cyan} />
-          <SectionRow label="PACKAGES SCANNED" value="10" barPct={60} color={colors.purple} />
-          <SectionRow label="INTEGRITY SCORE" value="98/100" barPct={98} color={colors.primary} />
+          <SectionRow label="MOTOR DE ESCANEO" value="v2.1.0" barPct={100} color={colors.primary} />
+          <SectionRow label="ENTRADAS BASE DE FIRMAS" value="3.847" barPct={80} color={colors.cyan} />
+          <SectionRow label="PAQUETES ESCANEADOS" value="10" barPct={60} color={colors.purple} />
+          <SectionRow label="PUNTUACIÓN INTEGRIDAD" value="98/100" barPct={98} color={colors.primary} />
         </View>
       </View>
     </ScrollView>

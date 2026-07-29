@@ -3,32 +3,48 @@ import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
+  withRepeat,
+  withSequence,
   withTiming,
+  Easing,
 } from 'react-native-reanimated';
 import { useColors } from '@/hooks/useColors';
 
 interface BarConfig {
   label: string;
   color: string;
-  interval: number;
+  /** ms for each up-down half-cycle */
+  speed: number;
   initial: number;
+  min: number;
+  max: number;
 }
 
 interface AnimatedBarProps {
   config: BarConfig;
 }
 
-// Each bar is its own component — never call useAnimatedStyle inside a loop
+// Cada barra es su propio componente — nunca llamar useAnimatedStyle dentro de un map
 function AnimatedBar({ config }: AnimatedBarProps) {
   const heightPct = useSharedValue(config.initial);
 
   useEffect(() => {
-    const tick = () => {
-      heightPct.value = withTiming(10 + Math.random() * 85, { duration: config.interval * 0.8 });
+    const randomBetween = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+
+    const scheduleNext = () => {
+      const target = randomBetween(config.min, config.max);
+      const t = config.speed * (0.6 + Math.random() * 0.8);
+      heightPct.value = withTiming(target, {
+        duration: t,
+        easing: Easing.inOut(Easing.quad),
+      });
+      setTimeout(scheduleNext, t);
     };
-    tick();
-    const id = setInterval(tick, config.interval);
-    return () => clearInterval(id);
+
+    // Pequeño delay de arranque escalonado para que las barras no se sincronicen
+    const startDelay = Math.random() * config.speed;
+    const id = setTimeout(scheduleNext, startDelay);
+    return () => clearTimeout(id);
   }, []);
 
   const barStyle = useAnimatedStyle(() => ({
@@ -61,25 +77,32 @@ interface TelemetryGraphProps {
 export default function TelemetryGraph({ isActive }: TelemetryGraphProps) {
   const colors = useColors();
 
+  // Las barras siempre animan — isActive solo cambia la etiqueta del indicador
   const BARS: BarConfig[] = [
-    { label: 'T-0', color: colors.primary, interval: 620, initial: 45 },
-    { label: 'T-1', color: colors.cyan, interval: 430, initial: 72 },
-    { label: 'T-2', color: colors.purple, interval: 780, initial: 30 },
-    { label: 'T-3', color: colors.primary, interval: 510, initial: 58 },
-    { label: 'T-4', color: colors.warning, interval: 350, initial: 88 },
-    { label: 'T-5', color: colors.cyan, interval: 680, initial: 22 },
-    { label: 'T-6', color: colors.purple, interval: 540, initial: 65 },
-    { label: 'T-7', color: colors.primary, interval: 460, initial: 40 },
+    { label: 'T-0', color: colors.primary, speed: 320, initial: 45, min: 8, max: 95 },
+    { label: 'T-1', color: colors.cyan,    speed: 210, initial: 72, min: 12, max: 100 },
+    { label: 'T-2', color: colors.purple,  speed: 390, initial: 30, min: 5,  max: 88 },
+    { label: 'T-3', color: colors.primary, speed: 260, initial: 58, min: 15, max: 92 },
+    { label: 'T-4', color: colors.warning, speed: 180, initial: 88, min: 20, max: 100 },
+    { label: 'T-5', color: colors.cyan,    speed: 340, initial: 22, min: 6,  max: 85 },
+    { label: 'T-6', color: colors.purple,  speed: 270, initial: 65, min: 10, max: 96 },
+    { label: 'T-7', color: colors.primary, speed: 230, initial: 40, min: 8,  max: 90 },
   ];
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card, borderColor: `${colors.cyan}30` }]}>
       <View style={styles.headerRow}>
-        <Text style={[styles.title, { color: colors.cyan }]}>THREAD ANALYSIS</Text>
-        <View style={[styles.activePill, { backgroundColor: isActive ? `${colors.primary}25` : `${colors.mutedForeground}20`, borderColor: isActive ? colors.primary : colors.mutedForeground }]}>
+        <Text style={[styles.title, { color: colors.cyan }]}>ANÁLISIS DE HILOS CPU</Text>
+        <View style={[
+          styles.activePill,
+          {
+            backgroundColor: isActive ? `${colors.primary}25` : `${colors.mutedForeground}20`,
+            borderColor: isActive ? colors.primary : colors.mutedForeground,
+          },
+        ]}>
           <View style={[styles.activeDot, { backgroundColor: isActive ? colors.primary : colors.mutedForeground }]} />
           <Text style={[styles.activeLabel, { color: isActive ? colors.primary : colors.mutedForeground }]}>
-            {isActive ? 'LIVE' : 'IDLE'}
+            {isActive ? 'EN VIVO' : 'ACTIVO'}
           </Text>
         </View>
       </View>
@@ -90,7 +113,7 @@ export default function TelemetryGraph({ isActive }: TelemetryGraphProps) {
         ))}
       </View>
 
-      {/* Y-axis labels */}
+      {/* Etiquetas del eje Y */}
       <View style={styles.yAxis}>
         {['100', '75', '50', '25', '0'].map((v) => (
           <Text key={v} style={[styles.yLabel, { color: colors.mutedForeground }]}>{v}</Text>
@@ -162,9 +185,9 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: 2,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOpacity: 0.8,
+    shadowRadius: 5,
+    elevation: 3,
   },
   barLabel: {
     fontSize: 8,

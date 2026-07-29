@@ -1,5 +1,10 @@
 import React, { useEffect, useRef } from 'react';
 import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useColors } from '@/hooks/useColors';
 import { LogEntry, LogLevel } from '@/contexts/SecurityContext';
 
@@ -10,11 +15,11 @@ interface LogTerminalProps {
 
 function levelColor(level: LogLevel, colors: ReturnType<typeof useColors>): string {
   switch (level) {
-    case 'OK': return colors.primary;      // neon green
-    case 'THREAT': return colors.threat;   // crimson
-    case 'WARN': return colors.warning;    // amber
-    case 'AUDIT': return colors.cyan;      // cyan
-    case 'SYS': return colors.purple;      // purple
+    case 'OK': return colors.primary;
+    case 'THREAT': return colors.threat;
+    case 'WARN': return colors.warning;
+    case 'AUDIT': return colors.cyan;
+    case 'SYS': return colors.purple;
     case 'INFO': return colors.mutedForeground;
     default: return colors.foreground;
   }
@@ -23,28 +28,80 @@ function levelColor(level: LogLevel, colors: ReturnType<typeof useColors>): stri
 function levelTag(level: LogLevel): string {
   switch (level) {
     case 'OK': return '[ OK ]';
-    case 'THREAT': return '[THRT]';
-    case 'WARN': return '[WARN]';
+    case 'THREAT': return '[AMZT]';
+    case 'WARN': return '[AVSO]';
     case 'AUDIT': return '[AUDT]';
-    case 'SYS': return '[SYS ]';
+    case 'SYS': return '[SIS ]';
     case 'INFO': return '[INFO]';
     default: return '[----]';
   }
 }
 
+// Componente individual por línea — anima su entrada con fade + slide
+function LogRow({ entry, isNew, colors }: { entry: LogEntry; isNew: boolean; colors: ReturnType<typeof useColors> }) {
+  const opacity = useSharedValue(isNew ? 0 : 1);
+  const translateX = useSharedValue(isNew ? -10 : 0);
+
+  useEffect(() => {
+    if (isNew) {
+      opacity.value = withTiming(1, { duration: 160 });
+      translateX.value = withTiming(0, { duration: 160 });
+    }
+  }, []);
+
+  const rowStyle = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.row, rowStyle]}>
+      <Text style={[styles.ts, { color: colors.mutedForeground }]}>
+        {entry.timestamp}
+      </Text>
+      <Text style={[styles.tag, { color: levelColor(entry.level, colors) }]}>
+        {levelTag(entry.level)}
+      </Text>
+      <Text
+        style={[
+          styles.msg,
+          {
+            color:
+              entry.level === 'THREAT'
+                ? colors.threat
+                : entry.level === 'OK'
+                ? colors.primary
+                : colors.foreground,
+          },
+        ]}
+        numberOfLines={3}
+      >
+        {entry.message}
+      </Text>
+    </Animated.View>
+  );
+}
+
 export default function LogTerminal({ logs, maxHeight = 300 }: LogTerminalProps) {
   const colors = useColors();
   const scrollRef = useRef<ScrollView>(null);
+  // Rastrear qué entradas ya habían sido renderizadas antes
+  const prevLengthRef = useRef(0);
 
   useEffect(() => {
     if (logs.length > 0) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         scrollRef.current?.scrollToEnd({ animated: true });
-      }, 50);
+      }, 40);
+      return () => clearTimeout(timer);
     }
   }, [logs.length]);
 
-  const topInset = Platform.OS === 'web' ? 0 : 0;
+  const newFromIndex = prevLengthRef.current;
+  // Actualizar después del render para la próxima comparación
+  useEffect(() => {
+    prevLengthRef.current = logs.length;
+  });
 
   return (
     <View
@@ -54,17 +111,17 @@ export default function LogTerminal({ logs, maxHeight = 300 }: LogTerminalProps)
           maxHeight,
           backgroundColor: '#060910',
           borderColor: `${colors.cyan}40`,
-          borderRadius: colors.radius,
+          borderRadius: (colors as any).radius ?? 6,
         },
       ]}
     >
-      {/* Header bar */}
+      {/* Barra de título estilo terminal */}
       <View style={[styles.header, { borderBottomColor: `${colors.cyan}30` }]}>
         <View style={[styles.dot, { backgroundColor: colors.threat }]} />
         <View style={[styles.dot, { backgroundColor: colors.warning, marginLeft: 6 }]} />
         <View style={[styles.dot, { backgroundColor: colors.primary, marginLeft: 6 }]} />
         <Text style={[styles.headerText, { color: colors.cyan }]}>
-          AUDIT LOG — {logs.length} entries
+          REGISTRO DE AUDITORÍA — {logs.length} entradas
         </Text>
       </View>
 
@@ -76,30 +133,19 @@ export default function LogTerminal({ logs, maxHeight = 300 }: LogTerminalProps)
       >
         {logs.length === 0 ? (
           <Text style={[styles.empty, { color: colors.mutedForeground }]}>
-            {'> Awaiting scan initiation...\n> Run THREAT HUNT to begin.'}
+            {'> Esperando inicio de escaneo...\n> Ejecuta CAZA DE AMENAZAS para comenzar.'}
           </Text>
         ) : (
-          logs.map((entry) => (
-            <View key={entry.id} style={styles.row}>
-              <Text style={[styles.ts, { color: `${colors.mutedForeground}` }]}>
-                {entry.timestamp}
-              </Text>
-              <Text style={[styles.tag, { color: levelColor(entry.level, colors) }]}>
-                {levelTag(entry.level)}
-              </Text>
-              <Text
-                style={[
-                  styles.msg,
-                  { color: entry.level === 'THREAT' ? colors.threat : entry.level === 'OK' ? colors.primary : colors.foreground },
-                ]}
-                numberOfLines={3}
-              >
-                {entry.message}
-              </Text>
-            </View>
+          logs.map((entry, index) => (
+            <LogRow
+              key={entry.id}
+              entry={entry}
+              isNew={index >= newFromIndex}
+              colors={colors}
+            />
           ))
         )}
-        {/* Blinking cursor */}
+        {/* Cursor parpadeante */}
         {logs.length > 0 && (
           <Text style={[styles.cursor, { color: colors.cyan }]}>{'> _'}</Text>
         )}
@@ -141,7 +187,7 @@ const styles = StyleSheet.create({
   },
   row: {
     flexDirection: 'row',
-    marginBottom: 2,
+    marginBottom: 3,
     flexWrap: 'wrap',
     gap: 4,
   },

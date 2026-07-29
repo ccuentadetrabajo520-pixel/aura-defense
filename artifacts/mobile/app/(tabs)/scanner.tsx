@@ -45,27 +45,41 @@ export default function ScannerScreen() {
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
-  // Pulse animation for scan button
+  // Animación de pulso para el botón de escaneo
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(1);
+  // Animación de destello al iniciar escaneo
+  const flashBorder = useSharedValue(0.5);
 
   React.useEffect(() => {
     if (isScanning) {
       pulseScale.value = withRepeat(
-        withSequence(withTiming(1.04, { duration: 600 }), withTiming(1, { duration: 600 })),
+        withSequence(withTiming(1.04, { duration: 500 }), withTiming(1, { duration: 500 })),
         -1,
         false
       );
-      pulseOpacity.value = withRepeat(withTiming(0.7, { duration: 600 }), -1, true);
+      pulseOpacity.value = withRepeat(withTiming(0.65, { duration: 500 }), -1, true);
+      // Borde parpadeante rápido
+      flashBorder.value = withRepeat(
+        withSequence(withTiming(1, { duration: 200 }), withTiming(0.3, { duration: 200 })),
+        -1,
+        false
+      );
     } else {
       pulseScale.value = withTiming(1, { duration: 200 });
       pulseOpacity.value = withTiming(1, { duration: 200 });
+      flashBorder.value = withTiming(0.5, { duration: 300 });
     }
   }, [isScanning]);
 
   const btnStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
     opacity: pulseOpacity.value,
+  }));
+
+  const btnBorderStyle = useAnimatedStyle(() => ({
+    borderWidth: 1.5 + flashBorder.value,
+    shadowOpacity: flashBorder.value * 0.8,
   }));
 
   const handleScan = () => {
@@ -75,7 +89,7 @@ export default function ScannerScreen() {
   };
 
   const scanBtnColor = isScanning ? colors.warning : isComplete ? colors.cyan : colors.primary;
-  const scanBtnLabel = isScanning ? 'SCANNING...' : isComplete ? 'RE-SCAN DEVICE' : 'THREAT HUNT';
+  const scanBtnLabel = isScanning ? 'ESCANEANDO...' : isComplete ? 'RE-ESCANEAR' : 'CAZA DE AMENAZAS';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -86,19 +100,19 @@ export default function ScannerScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Page header */}
+        {/* Cabecera */}
         <View style={styles.pageHeader}>
-          <Text style={[styles.pageTitle, { color: colors.foreground }]}>THREAT HUNT</Text>
+          <Text style={[styles.pageTitle, { color: colors.foreground }]}>CAZA DE AMENAZAS</Text>
           <View style={[styles.countBadge, { backgroundColor: `${threatCount > 0 ? colors.threat : colors.primary}20`, borderColor: `${threatCount > 0 ? colors.threat : colors.primary}50` }]}>
             <Text style={[styles.countText, { color: threatCount > 0 ? colors.threat : colors.primary }]}>
-              {threatCount} THREATS
+              {threatCount} AMENAZAS
             </Text>
           </View>
         </View>
 
-        {/* SCAN BUTTON */}
+        {/* BOTÓN DE ESCANEO */}
         <Animated.View style={btnStyle}>
-          <TouchableOpacity
+          <Animated.View
             style={[
               styles.scanBtn,
               {
@@ -106,72 +120,82 @@ export default function ScannerScreen() {
                 backgroundColor: `${scanBtnColor}15`,
                 shadowColor: scanBtnColor,
               },
+              btnBorderStyle,
             ]}
-            onPress={handleScan}
-            disabled={isScanning}
-            activeOpacity={0.75}
           >
-            <MaterialCommunityIcons
-              name={isScanning ? 'radar' : isComplete ? 'reload' : 'shield-search'}
-              size={32}
-              color={scanBtnColor}
-            />
-            <Text style={[styles.scanBtnText, { color: scanBtnColor }]}>{scanBtnLabel}</Text>
-            {isScanning && (
-              <Text style={[styles.scanSub, { color: `${scanBtnColor}80` }]}>
-                Analyzing packages · checking network · scanning EXIF
-              </Text>
-            )}
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.scanBtnInner}
+              onPress={handleScan}
+              disabled={isScanning}
+              activeOpacity={0.75}
+            >
+              <MaterialCommunityIcons
+                name={isScanning ? 'radar' : isComplete ? 'reload' : 'shield-search'}
+                size={34}
+                color={scanBtnColor}
+              />
+              <Text style={[styles.scanBtnText, { color: scanBtnColor }]}>{scanBtnLabel}</Text>
+              {isScanning && (
+                <Text style={[styles.scanSub, { color: `${scanBtnColor}90` }]}>
+                  Analizando paquetes · verificando red · escaneando EXIF
+                </Text>
+              )}
+              {!isScanning && !isComplete && (
+                <Text style={[styles.scanSub, { color: `${scanBtnColor}60` }]}>
+                  Toca para iniciar análisis completo del sistema
+                </Text>
+              )}
+            </TouchableOpacity>
+          </Animated.View>
         </Animated.View>
 
-        {/* Network analysis panel */}
+        {/* Panel de análisis de red */}
         <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.panelHeader}>
             <MaterialCommunityIcons name="wifi-lock" size={14} color={colors.cyan} />
-            <Text style={[styles.panelTitle, { color: colors.cyan }]}>IDS NETWORK ANALYSIS</Text>
+            <Text style={[styles.panelTitle, { color: colors.cyan }]}>ANÁLISIS IDS DE RED</Text>
           </View>
           {networkStatus ? (
             <>
               <NetStatusRow label="SSID" value={networkStatus.ssid} ok={true} />
-              <NetStatusRow label="GATEWAY" value={networkStatus.gateway} ok={true} />
+              <NetStatusRow label="PUERTA DE ENLACE" value={networkStatus.gateway} ok={true} />
               <NetStatusRow label="DNS" value={networkStatus.dns} ok={true} />
-              <NetStatusRow label="MitM PROBE" value={networkStatus.mitm ? 'ATTACK DETECTED' : 'CLEAN'} ok={!networkStatus.mitm} />
-              <NetStatusRow label="ENCRYPTION" value={networkStatus.encrypted ? 'WPA3 VALID' : 'WEAK'} ok={networkStatus.encrypted} />
+              <NetStatusRow label="SONDA MitM" value={networkStatus.mitm ? 'ATAQUE DETECTADO' : 'LIMPIO'} ok={!networkStatus.mitm} />
+              <NetStatusRow label="CIFRADO" value={networkStatus.encrypted ? 'WPA3 VÁLIDO' : 'DÉBIL'} ok={networkStatus.encrypted} />
             </>
           ) : (
             <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}>
-              Run scan to analyze network security
+              Ejecuta un escaneo para analizar la seguridad de red
             </Text>
           )}
         </View>
 
-        {/* System integrity panel */}
+        {/* Panel de integridad del sistema */}
         <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.panelHeader}>
             <MaterialCommunityIcons name="shield-lock" size={14} color={colors.purple} />
-            <Text style={[styles.panelTitle, { color: colors.purple }]}>SYSTEM INTEGRITY CORE</Text>
+            <Text style={[styles.panelTitle, { color: colors.purple }]}>NÚCLEO DE INTEGRIDAD DEL SISTEMA</Text>
           </View>
           {scanState !== 'idle' ? (
             <>
-              <NetStatusRow label="ROOT BINARIES" value={rootDetected ? 'COMPROMISED' : 'CLEAN'} ok={!rootDetected} />
-              <NetStatusRow label="ROM KEYS" value="OFFICIAL RELEASE" ok={true} />
-              <NetStatusRow label="DEBUG MODE" value={debugDetected ? 'ACTIVE — RISK' : 'INACTIVE'} ok={!debugDetected} />
-              <NetStatusRow label="ANTI-TAMPER" value="ENGAGED" ok={true} />
+              <NetStatusRow label="BINARIOS ROOT" value={rootDetected ? 'COMPROMETIDO' : 'LIMPIO'} ok={!rootDetected} />
+              <NetStatusRow label="CLAVES ROM" value="VERSIÓN OFICIAL" ok={true} />
+              <NetStatusRow label="MODO DEBUG" value={debugDetected ? 'ACTIVO — RIESGO' : 'INACTIVO'} ok={!debugDetected} />
+              <NetStatusRow label="ANTI-MANIPULACIÓN" value="ACTIVO" ok={true} />
             </>
           ) : (
             <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}>
-              Run scan to audit system integrity
+              Ejecuta un escaneo para auditar la integridad del sistema
             </Text>
           )}
         </View>
 
-        {/* Log terminal */}
+        {/* Terminal de log */}
         <View>
           <View style={styles.termHeader}>
             <MaterialCommunityIcons name="console" size={14} color={colors.cyan} />
-            <Text style={[styles.panelTitle, { color: colors.cyan }]}>AUDIT LOG CONSOLE</Text>
-            <Text style={[styles.logCount, { color: colors.mutedForeground }]}>{logs.length} entries</Text>
+            <Text style={[styles.panelTitle, { color: colors.cyan }]}>CONSOLA DE AUDITORÍA</Text>
+            <Text style={[styles.logCount, { color: colors.mutedForeground }]}>{logs.length} entradas</Text>
           </View>
           <LogTerminal logs={logs} maxHeight={340} />
         </View>
@@ -205,16 +229,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
   },
   scanBtn: {
+    borderRadius: 12,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 20,
+    elevation: 6,
+    overflow: 'hidden',
+  },
+  scanBtnInner: {
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderRadius: 12,
-    paddingVertical: 24,
+    paddingVertical: 26,
     gap: 10,
-    shadowOffset: { width: 0, height: 0 },
-    shadowRadius: 18,
-    shadowOpacity: 0.5,
-    elevation: 6,
   },
   scanBtnText: {
     fontSize: 18,
@@ -225,6 +250,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Inter_400Regular',
     letterSpacing: 0.5,
+    textAlign: 'center',
+    paddingHorizontal: 20,
   },
   panel: {
     borderWidth: 1,

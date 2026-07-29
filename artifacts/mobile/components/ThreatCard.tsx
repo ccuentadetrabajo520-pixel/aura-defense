@@ -1,5 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Alert, Linking, Platform, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { ThreatItem, ThreatSeverity } from '@/contexts/SecurityContext';
@@ -20,19 +27,49 @@ function severityColor(severity: ThreatSeverity, colors: ReturnType<typeof useCo
 }
 
 function severityLabel(severity: ThreatSeverity): string {
-  return severity.toUpperCase();
+  switch (severity) {
+    case 'critical': return 'CRÍTICO';
+    case 'high': return 'ALTO';
+    case 'medium': return 'MEDIO';
+    case 'low': return 'BAJO';
+  }
 }
 
 export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
   const colors = useColors();
   const borderColor = severityColor(threat.severity, colors);
+  const isCritical = threat.severity === 'critical' && !threat.purged;
+
+  // Pulso de brillo rojo neón para tarjetas críticas
+  const glowIntensity = useSharedValue(0.2);
+
+  useEffect(() => {
+    if (isCritical) {
+      glowIntensity.value = withRepeat(
+        withSequence(
+          withTiming(1, { duration: 600 }),
+          withTiming(0.15, { duration: 700 }),
+          withTiming(0.8, { duration: 400 }),
+          withTiming(0.1, { duration: 500 }),
+        ),
+        -1,
+        false
+      );
+    } else {
+      glowIntensity.value = withTiming(0.25, { duration: 300 });
+    }
+  }, [isCritical]);
+
+  const glowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: glowIntensity.value,
+    borderColor: `${borderColor}${Math.round(glowIntensity.value * 180).toString(16).padStart(2, '0')}`,
+  }));
 
   const handlePurge = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
 
     const execute = () => {
       onPurge(threat.id);
-      // On Android, open the app's uninstall dialog via Linking
       if (Platform.OS === 'android') {
         Linking.openURL(`package:${threat.packageName}`).catch(() => {});
       }
@@ -59,7 +96,7 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
         <View style={styles.purgedRow}>
           <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} />
           <Text style={[styles.purgedText, { color: colors.primary }]}>
-            THREAT PURGED — {threat.name}
+            AMENAZA PURGADA — {threat.name}
           </Text>
         </View>
       </View>
@@ -67,21 +104,23 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
   }
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.card,
         {
           backgroundColor: `${colors.card}CC`,
-          borderColor: `${borderColor}70`,
           shadowColor: borderColor,
+          shadowRadius: isCritical ? 18 : 12,
+          shadowOffset: { width: 0, height: 0 },
         },
+        glowStyle,
       ]}
     >
-      {/* Severity stripe */}
+      {/* Franja lateral de severidad */}
       <View style={[styles.stripe, { backgroundColor: borderColor }]} />
 
       <View style={styles.body}>
-        {/* Header row */}
+        {/* Fila de cabecera */}
         <View style={styles.headerRow}>
           <View style={styles.nameGroup}>
             <Text style={[styles.severity, { color: borderColor }]}>
@@ -95,19 +134,19 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
           </View>
         </View>
 
-        {/* Package */}
+        {/* Paquete */}
         <Text style={[styles.pkg, { color: colors.mutedForeground }]}>{threat.packageName}</Text>
 
-        {/* Threat type */}
+        {/* Tipo de amenaza */}
         <View style={[styles.typeRow, { backgroundColor: `${borderColor}15` }]}>
           <MaterialCommunityIcons name="alert-octagon" size={12} color={borderColor} />
           <Text style={[styles.typeText, { color: borderColor }]}>{threat.threatType}</Text>
         </View>
 
-        {/* Description */}
+        {/* Descripción */}
         <Text style={[styles.desc, { color: colors.foreground }]}>{threat.description}</Text>
 
-        {/* Permissions */}
+        {/* Permisos */}
         <View style={styles.permsRow}>
           {threat.permissions.slice(0, 4).map((p) => (
             <View key={p} style={[styles.permTag, { backgroundColor: `${colors.border}` }]}>
@@ -123,7 +162,7 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
           )}
         </View>
 
-        {/* Purge button */}
+        {/* Botón de purga */}
         <TouchableOpacity
           style={[styles.purgeBtn, { borderColor: colors.threat, backgroundColor: `${colors.threat}18` }]}
           onPress={handlePurge}
@@ -133,7 +172,7 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
           <Text style={[styles.purgeBtnText, { color: colors.threat }]}>EJECUTAR PURGA</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -144,9 +183,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     flexDirection: 'row',
     overflow: 'hidden',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
     elevation: 4,
   },
   stripe: {

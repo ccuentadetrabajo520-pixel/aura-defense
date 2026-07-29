@@ -72,7 +72,11 @@ export default function ShieldScreen() {
 
   const overallOk = threatCount === 0 && !rootDetected;
   const statusColor = isScanning ? colors.warning : overallOk ? colors.primary : colors.threat;
-  const statusText = isScanning ? 'SCANNING...' : overallOk ? 'SECURE' : `${threatCount} THREAT${threatCount !== 1 ? 'S' : ''}`;
+  const statusText = isScanning
+    ? 'ESCANEANDO...'
+    : overallOk
+    ? 'SEGURO'
+    : `${threatCount} AMENAZA${threatCount !== 1 ? 'S' : ''}`;
 
   return (
     <ScrollView
@@ -80,7 +84,7 @@ export default function ShieldScreen() {
       contentContainerStyle={[styles.content, { paddingTop: topPad + 16, paddingBottom: bottomPad + 100 }]}
       showsVerticalScrollIndicator={false}
     >
-      {/* Top header */}
+      {/* Cabecera */}
       <View style={styles.headerRow}>
         <View>
           <Text style={[styles.appTitle, { color: colors.cyan }]}>AURA</Text>
@@ -110,13 +114,12 @@ export default function ShieldScreen() {
           <RadarHUD isScanning={isScanning} threatCount={threatCount} size={270} />
         </Animated.View>
 
-        {/* Scanning ring label */}
         <Text style={[styles.radarLabel, { color: `${colors.cyan}80` }]}>
-          {isScanning ? '[ ACTIVE SWEEP ]' : '[ HOLOGRAPHIC IDS ]'}
+          {isScanning ? '[ BARRIDO ACTIVO ]' : '[ IDS HOLOGRÁFICO ]'}
         </Text>
       </View>
 
-      {/* Firewall toggle card */}
+      {/* Tarjeta cortafuegos */}
       <Animated.View
         style={[
           styles.firewallCard,
@@ -135,9 +138,9 @@ export default function ShieldScreen() {
             color={firewallEnabled ? colors.primary : colors.mutedForeground}
           />
           <View>
-            <Text style={[styles.fwTitle, { color: colors.foreground }]}>VPN FIREWALL</Text>
+            <Text style={[styles.fwTitle, { color: colors.foreground }]}>CORTAFUEGOS VPN</Text>
             <Text style={[styles.fwSub, { color: firewallEnabled ? colors.primary : colors.mutedForeground }]}>
-              {firewallEnabled ? 'Traffic routed — 10.0.0.1 active' : 'Disabled — unprotected traffic'}
+              {firewallEnabled ? 'Tráfico enrutado — 10.0.0.1 activo' : 'Desactivado — tráfico sin protección'}
             </Text>
           </View>
         </View>
@@ -150,31 +153,31 @@ export default function ShieldScreen() {
         />
       </Animated.View>
 
-      {/* Status grid */}
+      {/* Cuadrícula de estado */}
       <View style={styles.statGrid}>
         <StatusIndicator
-          label="NETWORK"
-          value={networkStatus ? 'SECURED' : 'NO SCAN'}
+          label="RED"
+          value={networkStatus ? 'SEGURA' : 'SIN ESCANEO'}
           ok={!!networkStatus && !networkStatus.mitm}
         />
         <StatusIndicator
           label="ROOT"
-          value={rootDetected ? 'COMPROMISED' : 'CLEAN'}
+          value={rootDetected ? 'COMPROMETIDO' : 'LIMPIO'}
           ok={!rootDetected}
         />
         <StatusIndicator
-          label="THREATS"
-          value={scanState === 'idle' ? '—' : `${threatCount} ACTIVE`}
+          label="AMENAZAS"
+          value={scanState === 'idle' ? '—' : `${threatCount} ACTIVAS`}
           ok={threatCount === 0}
         />
         <StatusIndicator
-          label="CRITICAL"
-          value={scanState === 'idle' ? '—' : `${criticalCount} FOUND`}
+          label="CRÍTICO"
+          value={scanState === 'idle' ? '—' : `${criticalCount} HALLADAS`}
           ok={criticalCount === 0}
         />
       </View>
 
-      {/* Firewall route info */}
+      {/* Panel de ruta VPN */}
       {firewallEnabled && (
         <View style={[styles.infoPanel, { backgroundColor: `${colors.primary}10`, borderColor: `${colors.primary}30` }]}>
           <View style={styles.infoRow}>
@@ -183,11 +186,11 @@ export default function ShieldScreen() {
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="lock-closed" size={12} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.primary }]}>Packet filter ACTIVE — 0.0.0.0/0 routed</Text>
+            <Text style={[styles.infoText, { color: colors.primary }]}>Filtro de paquetes ACTIVO — 0.0.0.0/0 enrutado</Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="shield-checkmark" size={12} color={colors.primary} />
-            <Text style={[styles.infoText, { color: colors.primary }]}>IDS mode: monitoring network anomalies</Text>
+            <Text style={[styles.infoText, { color: colors.primary }]}>Modo IDS: monitorizando anomalías de red</Text>
           </View>
         </View>
       )}

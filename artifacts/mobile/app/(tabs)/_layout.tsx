@@ -38,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'SHIELD',
+          title: 'ESCUDO',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'shield-check' : 'shield-outline'}
@@ -51,7 +51,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="scanner"
         options={{
-          title: 'SCANNER',
+          title: 'ESCÁNER',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'radar' : 'radar'}
@@ -70,7 +70,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="telemetry"
         options={{
-          title: 'TELEMETRY',
+          title: 'TELEMETRÍA',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'chart-line' : 'chart-line-variant'}
@@ -83,7 +83,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="purge"
         options={{
-          title: 'PURGE',
+          title: 'PURGA',
           tabBarIcon: ({ color, focused }) => (
             <MaterialCommunityIcons
               name={focused ? 'delete-sweep' : 'delete-sweep-outline'}
