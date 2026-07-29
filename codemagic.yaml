@@ -25,9 +25,32 @@ workflows:
           const hasRouterPkg = pkg.dependencies && pkg.dependencies["expo-router"];
 
           if (hasAppFolder || hasRouterPkg) {
+            console.log("-> Configurando Expo Router");
             pkg.main = "expo-router/entry";
-          } else if (!pkg.main) {
+          } else {
+            console.log("-> Configurando Expo Estándar");
             pkg.main = "node_modules/expo/AppEntry.js";
+
+            const rootAppExists = ["App.js", "App.tsx", "App.jsx", "App.ts"].some(f => fs.existsSync(f));
+            if (!rootAppExists) {
+              const candidates = [
+                "app.tsx", "app.js", "app.jsx",
+                "src/App.tsx", "src/App.js", "src/App.jsx", "src/App.ts",
+                "src/app.tsx", "src/app.js",
+                "src/index.tsx", "src/index.js",
+                "index.tsx", "index.js",
+                "src/main.tsx", "src/main.js"
+              ];
+              const target = candidates.find(f => fs.existsSync(f));
+              if (target) {
+                console.log("-> Archivo principal encontrado en:", target);
+                const cleanPath = "./" + target.replace(/\\/g, "/").replace(/\.(tsx|jsx|js|ts)$/, "");
+                fs.writeFileSync("App.js", `import App from "${cleanPath}";\nexport default App;\n`);
+              } else {
+                console.log("-> Creando App.js base...");
+                fs.writeFileSync("App.js", `import React from "react"; import { View, Text } from "react-native"; export default function App() { return <View><Text>App</Text></View>; }`);
+              }
+            }
           }
           fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
           '
