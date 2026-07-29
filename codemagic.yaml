@@ -12,10 +12,11 @@ workflows:
           npx pnpm@9 install --no-frozen-lockfile --shamefully-hoist
       - name: Generar carpeta Android
         script: |
-          npx expo prebuild --platform android
+          CI=1 npx expo prebuild --platform android --no-install
       - name: Generar APK Release
         script: |
           cd android
+          chmod +x gradlew
           ./gradlew assembleRelease
     artifacts:
       - android/app/build/outputs/apk/**/*.apk
