@@ -16,47 +16,33 @@ workflows:
           echo "shamefully-hoist=true" >> .npmrc
           rm -rf node_modules
           npx pnpm@9 install --no-frozen-lockfile
-      - name: Vincular punto de entrada App
+      - name: Corregir punto de entrada de la App
         script: |
           node -e '
           const fs = require("fs");
-          const path = require("path");
+          const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
+          const hasAppDir = fs.existsSync("app");
+          const hasExpoRouter = pkg.dependencies && pkg.dependencies["expo-router"];
 
-          const rootApps = ["App.tsx", "App.js", "App.jsx", "App.ts"];
-          if (rootApps.some(f => fs.existsSync(f))) {
-            console.log("El archivo App principal ya existe en la raíz.");
-            process.exit(0);
-          }
-
-          let mainFile = null;
-          if (fs.existsSync("package.json")) {
-            try {
-              const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-              if (pkg.main && !pkg.main.includes("node_modules")) mainFile = pkg.main;
-            } catch (e) {}
-          }
-
-          const candidates = [
-            mainFile,
-            "app.tsx", "app.js", "app.jsx",
-            "src/App.tsx", "src/App.js", "src/App.jsx", "src/App.ts",
-            "src/app.tsx", "src/app.js",
-            "src/index.tsx", "src/index.js",
-            "index.tsx", "index.js",
-            "app/index.tsx", "app/index.js"
-          ].filter(Boolean);
-
-          let target = candidates.find(f => fs.existsSync(f));
-
-          if (target) {
-            console.log("Archivo principal ubicado en:", target);
-            const cleanPath = "./" + target.replace(/\\/g, "/").replace(/\.(tsx|jsx|js|ts)$/, "");
-            fs.writeFileSync("App.js", `import App from "${cleanPath}";\nexport default App;\n`);
-            console.log("App.js creado correctamente en la raíz.");
+          if (hasAppDir || hasExpoRouter) {
+            console.log("--> Proyecto configurado como Expo Router");
+            pkg.main = "expo-router/entry";
+            // Eliminar App.js generado previamente para que no bloquee el enrutador
+            if (fs.existsSync("App.js")) fs.unlinkSync("App.js");
+            if (fs.existsSync("App.tsx")) fs.unlinkSync("App.tsx");
           } else {
-            console.log("Generando archivo de entrada en raíz...");
-            fs.writeFileSync("App.js", `import { View, Text } from "react-native";\nexport default function App() { return <View><Text>App</Text></View>; }\n`);
+            console.log("--> Proyecto configurado como Expo Estándar");
+            pkg.main = "node_modules/expo/AppEntry.js";
+            if (!fs.existsSync("App.js") && !fs.existsSync("App.tsx")) {
+              const candidates = ["src/App.tsx", "src/App.js", "src/app.tsx", "src/app.js", "app.tsx", "app.js", "src/index.tsx", "src/index.js", "index.tsx", "index.js"];
+              const target = candidates.find(f => fs.existsSync(f));
+              if (target) {
+                const clean = "./" + target.replace(/\\/g, "/").replace(/\.(tsx|jsx|js|ts)$/, "");
+                fs.writeFileSync("App.js", `import App from "${clean}";\nexport default App;\n`);
+              }
+            }
           }
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2));
           '
       - name: Generar carpeta Android
         script: |
