@@ -1,1 +1,1 @@
-import { Stack } from 'expo-router'; export default function RootLayout() { return <Stack />; }
+import { Stack } from 'expo-router'; import React from 'react'; import { Text, View, StyleSheet } from 'react-native'; export default function RootLayout() { try { return <Stack />; } catch (error) { return ( <View style={{flex:1, justifyContent:'center', alignItems:'center', padding:20}}><Text style={{fontSize:18, fontWeight:'bold', color:'red'}}>Error al cargar la app</Text><Text>{String(error)}</Text></View> ); } }
