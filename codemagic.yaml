@@ -9,7 +9,8 @@ workflows:
     scripts:
       - name: Instalar dependencias
         script: |
-          pnpm install
+          corepack enable
+          yarn install
       - name: Generar carpeta Android
         script: |
           npx expo prebuild --platform android
