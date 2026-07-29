@@ -1,0 +1,21 @@
+workflows:
+  android-apk:
+    name: Compilar APK Android
+    max_build_duration: 30
+    instance_type: mac_mini_m1
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Instalar dependencias
+        script: |
+          npm install
+      - name: Generar carpeta Android
+        script: |
+          npx expo prebuild --platform android
+      - name: Generar APK Release
+        script: |
+          cd android
+          ./gradlew assembleRelease
+    artifacts:
+      - android/app/build/outputs/apk/**/*.apk
