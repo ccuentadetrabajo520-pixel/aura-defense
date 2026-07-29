@@ -534,6 +534,8 @@ async function main() {
   prepareDirectories(timestamp);
   clearMetroCache();
 
+  process.env.CI = '''1''';
+  process.env.EXPO_DEVTOOLS_LISTEN_PORT = '''8082''';
   await startMetro(domain, expoPublicReplId);
 
   const downloadTimeout = 600000;
