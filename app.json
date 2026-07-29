@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "AuraDefensa",
+    "slug": "auradefens-1",
+    "version": "1.0.0",
+    "platforms": [
+      "android"
+    ],
+    "android": {
+      "package": "com.example.auradefensa"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b4a91774-a653-44df-a4ab-905a593fe1b4"
+      }
+    }
+  }
+}
