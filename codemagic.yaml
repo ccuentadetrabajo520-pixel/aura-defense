@@ -10,11 +10,24 @@ workflows:
         NODE_OPTIONS: "--max-old-space-size=4096"
         CI: "1"
     scripts:
-      - name: Instalar dependencias con estructura hoisted
+      - name: Configurar e instalar dependencias
         script: |
           echo "node-linker=hoisted" > .npmrc
           echo "shamefully-hoist=true" >> .npmrc
+          rm -rf node_modules
           npx pnpm@9 install --no-frozen-lockfile
+      - name: Vincular punto de entrada App
+        script: |
+          if [ ! -f "App.js" ] && [ ! -f "App.tsx" ] && [ ! -f "App.jsx" ] && [ ! -f "App.ts" ]; then
+            if [ -f "app.js" ]; then cp app.js App.js; fi
+            if [ -f "app.tsx" ]; then cp app.tsx App.tsx; fi
+            if [ -f "src/App.tsx" ]; then echo "export { default } from './src/App';" > App.js; fi
+            if [ -f "src/App.js" ]; then echo "export { default } from './src/App';" > App.js; fi
+            if [ -f "index.js" ]; then echo "export { default } from './index';" > App.js; fi
+            if [ -f "index.tsx" ]; then echo "export { default } from './index';" > App.js; fi
+            if [ -f "src/index.js" ]; then echo "export { default } from './src/index';" > App.js; fi
+            if [ -f "src/index.tsx" ]; then echo "export { default } from './src/index';" > App.js; fi
+          fi
       - name: Generar carpeta Android
         script: |
           npx expo prebuild --platform android --no-install
