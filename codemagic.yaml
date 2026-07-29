@@ -12,7 +12,7 @@ workflows:
           npx pnpm@9 install --no-frozen-lockfile
       - name: Generar carpeta Android
         script: |
-          npx expo prebuild --platform android
+          npx pnpm@9 exec expo prebuild --platform android
       - name: Generar APK Release
         script: |
           cd android
