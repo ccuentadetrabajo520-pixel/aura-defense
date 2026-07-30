@@ -16,6 +16,25 @@ workflows:
           echo "shamefully-hoist=true" >> .npmrc
           rm -rf android
           npx pnpm@9 install --no-frozen-lockfile
+      - name: Vincular punto de entrada
+        script: |
+          node -e '
+          const fs = require("fs");
+          const hasRootApp = ["App.js", "App.tsx", "App.jsx", "App.ts"].some(f => fs.existsSync(f));
+          if (!hasRootApp) {
+            const candidates = [
+              "src/App.tsx", "src/App.js", "src/App.jsx",
+              "src/app.tsx", "src/app.js",
+              "app/index.tsx", "app/index.js",
+              "src/index.tsx", "src/index.js"
+            ];
+            const target = candidates.find(f => fs.existsSync(f));
+            if (target) {
+              const cleanPath = "./" + target.replace(/\\/g, "/").replace(/\.(tsx|jsx|js|ts)$/, "");
+              fs.writeFileSync("App.js", `import App from "${cleanPath}";\nexport default App;\n`);
+            }
+          }
+          '
       - name: Generar carpeta Android nativa
         script: |
           npx expo prebuild --platform android --no-install
