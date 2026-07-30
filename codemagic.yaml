@@ -6,25 +6,9 @@ workflows:
     environment:
       node: 20
       java: 17
-      vars:
-        NODE_OPTIONS: "--max-old-space-size=8192"
-        CI: "1"
-    scripts:
-      - name: Instalar dependencias del monorepo (hoisted)
-        script: |
-          # Forzar hoisting para que expo prebuild encuentre los módulos
-          echo "node-linker=hoisted" > .npmrc
-          echo "shamefully-hoist=true" >> .npmrc
-          npx pnpm@9 install --no-frozen-lockfile
-
-      - name: Generar carpeta Android nativa
-        script: |
-          # IMPORTANTE: ejecutar desde el subdirectorio del proyecto Expo,
-          # no desde la raíz del monorepo.
-          cd artifacts/mobile
           rm -rf android
           export NODE_OPTIONS="--max-old-space-size=8192"
-          npx expo prebuild --platform android --no-install
+          npx expo prebuild --platform android --clean --no-install
 
       - name: Generar APK Release
         script: |
@@ -33,5 +17,4 @@ workflows:
           export NODE_OPTIONS="--max-old-space-size=8192"
           ./gradlew assembleRelease -x lint --no-daemon
 
-    artifacts:
-      - artifacts/mobile/android/app/build/outputs/apk/**/*.apk
+      - a

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -20,6 +20,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSecurity } from '@/contexts/SecurityContext';
 import { useColors } from '@/hooks/useColors';
 import RadarHUD from '@/components/RadarHUD';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useRouter } from 'expo-router';
 
 function StatusIndicator({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   const colors = useColors();
@@ -37,8 +39,10 @@ function StatusIndicator({ label, value, ok }: { label: string; value: string; o
 export default function ShieldScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const { firewallEnabled, toggleFirewall, scanState, threats, threatCount, criticalCount, networkStatus, rootDetected } =
     useSecurity();
+  const [profileName, setProfileName] = useState('Operador');
 
   const isScanning = scanState === 'scanning';
   const glowOpacity = useSharedValue(0.3);
@@ -51,6 +55,18 @@ export default function ShieldScreen() {
   useEffect(() => {
     fwGlow.value = withTiming(firewallEnabled ? 1 : 0, { duration: 400 });
   }, [firewallEnabled]);
+
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem('aura-user-name').then((value) => {
+      if (active && value) {
+        setProfileName(value);
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const glowStyle = useAnimatedStyle(() => ({
     opacity: glowOpacity.value,
@@ -100,6 +116,28 @@ export default function ShieldScreen() {
           <Animated.View style={[styles.statusDot, { backgroundColor: statusColor }, isScanning && glowStyle]} />
           <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
         </Animated.View>
+      </View>
+
+      <View style={[styles.quickActions, { backgroundColor: `${colors.card}DD`, borderColor: `${colors.border}` }]}>
+        <Text style={[styles.quickTitle, { color: colors.foreground }]}>OPERADOR: {profileName.toUpperCase()}</Text>
+        <Text style={[styles.quickSubtitle, { color: colors.mutedForeground }]}>Acceso directo a los módulos nativos del flujo de defensa.</Text>
+        <View style={styles.quickGrid}>
+          {[
+            { label: 'RADAR', route: '/radar' },
+            { label: 'P2P', route: '/p2p-console' },
+            { label: 'EXIF', route: '/metadata' },
+            { label: 'PURGA', route: '/ghost-purge' },
+          ].map((item) => (
+            <TouchableOpacity
+              key={item.route}
+              style={[styles.quickAction, { backgroundColor: `${colors.primary}12`, borderColor: `${colors.primary}40` }]}
+              activeOpacity={0.8}
+              onPress={() => router.push(item.route as any)}
+            >
+              <Text style={[styles.quickActionText, { color: colors.primary }]}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
       </View>
 
       {/* Radar HUD */}
@@ -238,6 +276,38 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 11,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 1.5,
+  },
+  quickActions: {
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 14,
+    gap: 10,
+  },
+  quickTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+    letterSpacing: 2,
+  },
+  quickSubtitle: {
+    fontSize: 11,
+    fontFamily: 'Inter_400Regular',
+    lineHeight: 16,
+  },
+  quickGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quickAction: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  quickActionText: {
+    fontSize: 10,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.5,
   },
