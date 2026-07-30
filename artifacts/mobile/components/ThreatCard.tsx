@@ -20,49 +20,50 @@ interface ThreatCardProps {
 function severityColor(severity: ThreatSeverity, colors: ReturnType<typeof useColors>): string {
   switch (severity) {
     case 'critical': return colors.threat;
-    case 'high': return colors.warning;
-    case 'medium': return colors.cyan;
-    case 'low': return colors.primary;
+    case 'high':     return colors.warning;
+    case 'medium':   return colors.cyan;
+    case 'low':      return colors.primary;
   }
 }
 
 function severityLabel(severity: ThreatSeverity): string {
   switch (severity) {
     case 'critical': return 'CRÍTICO';
-    case 'high': return 'ALTO';
-    case 'medium': return 'MEDIO';
-    case 'low': return 'BAJO';
+    case 'high':     return 'ALTO';
+    case 'medium':   return 'MEDIO';
+    case 'low':      return 'BAJO';
   }
 }
 
 export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
   const colors = useColors();
-  const borderColor = severityColor(threat.severity, colors);
+  const accentColor = severityColor(threat.severity, colors);
   const isCritical = threat.severity === 'critical' && !threat.purged;
 
-  // Pulso de brillo rojo neón para tarjetas críticas
-  const glowIntensity = useSharedValue(0.2);
+  // Pulsing neon glow for critical cards.
+  // Only shadowOpacity is animated — keeps the worklet pure numeric (no string ops).
+  const glowOpacity = useSharedValue(isCritical ? 0.2 : 0.25);
 
   useEffect(() => {
     if (isCritical) {
-      glowIntensity.value = withRepeat(
+      glowOpacity.value = withRepeat(
         withSequence(
-          withTiming(1, { duration: 600 }),
-          withTiming(0.15, { duration: 700 }),
-          withTiming(0.8, { duration: 400 }),
-          withTiming(0.1, { duration: 500 }),
+          withTiming(0.95, { duration: 550 }),
+          withTiming(0.10, { duration: 650 }),
+          withTiming(0.75, { duration: 380 }),
+          withTiming(0.08, { duration: 480 }),
         ),
         -1,
-        false
+        false,
       );
     } else {
-      glowIntensity.value = withTiming(0.25, { duration: 300 });
+      glowOpacity.value = withTiming(0.25, { duration: 300 });
     }
   }, [isCritical]);
 
+  // Worklet: only numeric values — no string concatenation / toString / padStart
   const glowStyle = useAnimatedStyle(() => ({
-    shadowOpacity: glowIntensity.value,
-    borderColor: `${borderColor}${Math.round(glowIntensity.value * 180).toString(16).padStart(2, '0')}`,
+    shadowOpacity: glowOpacity.value,
   }));
 
   const handlePurge = () => {
@@ -86,13 +87,13 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
       [
         { text: 'CANCELAR', style: 'cancel' },
         { text: 'PURGAR', style: 'destructive', onPress: execute },
-      ]
+      ],
     );
   };
 
   if (threat.purged) {
     return (
-      <View style={[styles.card, { backgroundColor: `${colors.card}80`, borderColor: `${colors.primary}40` }]}>
+      <View style={[styles.card, styles.cardPurged, { borderColor: `${colors.primary}40` }]}>
         <View style={styles.purgedRow}>
           <MaterialCommunityIcons name="check-circle" size={18} color={colors.primary} />
           <Text style={[styles.purgedText, { color: colors.primary }]}>
@@ -104,33 +105,36 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
   }
 
   return (
+    // Outer wrapper carries the animated shadow glow — no overflow:hidden here
+    // so the shadow is never clipped on any platform.
     <Animated.View
       style={[
         styles.card,
         {
           backgroundColor: `${colors.card}CC`,
-          shadowColor: borderColor,
-          shadowRadius: isCritical ? 18 : 12,
+          borderColor: `${accentColor}70`,
+          shadowColor: accentColor,
+          shadowRadius: isCritical ? 18 : 10,
           shadowOffset: { width: 0, height: 0 },
         },
         glowStyle,
       ]}
     >
-      {/* Franja lateral de severidad */}
-      <View style={[styles.stripe, { backgroundColor: borderColor }]} />
+      {/* Franja lateral de severidad — rounded via borderRadius on the stripe itself */}
+      <View style={[styles.stripe, { backgroundColor: accentColor }]} />
 
       <View style={styles.body}>
         {/* Fila de cabecera */}
         <View style={styles.headerRow}>
           <View style={styles.nameGroup}>
-            <Text style={[styles.severity, { color: borderColor }]}>
+            <Text style={[styles.severityLabel, { color: accentColor }]}>
               {severityLabel(threat.severity)}
             </Text>
             <Text style={[styles.name, { color: colors.foreground }]}>{threat.name}</Text>
           </View>
-          <View style={[styles.scoreBadge, { borderColor: `${borderColor}80`, backgroundColor: `${borderColor}15` }]}>
-            <Text style={[styles.scoreValue, { color: borderColor }]}>{threat.riskScore}</Text>
-            <Text style={[styles.scoreUnit, { color: `${borderColor}90` }]}>/100</Text>
+          <View style={[styles.scoreBadge, { borderColor: `${accentColor}80`, backgroundColor: `${accentColor}15` }]}>
+            <Text style={[styles.scoreValue, { color: accentColor }]}>{threat.riskScore}</Text>
+            <Text style={[styles.scoreUnit, { color: `${accentColor}90` }]}>/100</Text>
           </View>
         </View>
 
@@ -138,9 +142,9 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
         <Text style={[styles.pkg, { color: colors.mutedForeground }]}>{threat.packageName}</Text>
 
         {/* Tipo de amenaza */}
-        <View style={[styles.typeRow, { backgroundColor: `${borderColor}15` }]}>
-          <MaterialCommunityIcons name="alert-octagon" size={12} color={borderColor} />
-          <Text style={[styles.typeText, { color: borderColor }]}>{threat.threatType}</Text>
+        <View style={[styles.typeRow, { backgroundColor: `${accentColor}15` }]}>
+          <MaterialCommunityIcons name="alert-octagon" size={12} color={accentColor} />
+          <Text style={[styles.typeText, { color: accentColor }]}>{threat.threatType}</Text>
         </View>
 
         {/* Descripción */}
@@ -149,9 +153,13 @@ export default function ThreatCard({ threat, onPurge }: ThreatCardProps) {
         {/* Permisos */}
         <View style={styles.permsRow}>
           {threat.permissions.slice(0, 4).map((p) => (
-            <View key={p} style={[styles.permTag, { backgroundColor: `${colors.border}` }]}>
+            <View key={p} style={[styles.permTag, { backgroundColor: colors.border }]}>
               <Text style={[styles.permText, { color: colors.mutedForeground }]}>
-                {p.replace('ACCESS_', '').replace('READ_', 'R:').replace('WRITE_', 'W:').replace('RECEIVE_', 'RX:')}
+                {p
+                  .replace('ACCESS_', '')
+                  .replace('READ_', 'R:')
+                  .replace('WRITE_', 'W:')
+                  .replace('RECEIVE_', 'RX:')}
               </Text>
             </View>
           ))}
@@ -182,8 +190,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 14,
     flexDirection: 'row',
-    overflow: 'hidden',
+    // No overflow:hidden — keeps shadow/glow unclipped on all platforms
     elevation: 4,
+  },
+  cardPurged: {
+    backgroundColor: 'transparent',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   stripe: {
     width: 3,
@@ -204,7 +217,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 2,
   },
-  severity: {
+  severityLabel: {
     fontSize: 9,
     fontFamily: 'Inter_700Bold',
     letterSpacing: 2,

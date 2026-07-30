@@ -1,19 +1,17 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
-  withSequence,
   withTiming,
-  Easing,
 } from 'react-native-reanimated';
 import { useColors } from '@/hooks/useColors';
 
 interface BarConfig {
   label: string;
   color: string;
-  /** ms for each up-down half-cycle */
+  /** ms per animation step */
   speed: number;
   initial: number;
   min: number;
@@ -24,27 +22,36 @@ interface AnimatedBarProps {
   config: BarConfig;
 }
 
-// Cada barra es su propio componente — nunca llamar useAnimatedStyle dentro de un map
+// Each bar is its own component — never call useAnimatedStyle inside a .map()
 function AnimatedBar({ config }: AnimatedBarProps) {
   const heightPct = useSharedValue(config.initial);
 
   useEffect(() => {
-    const randomBetween = (lo: number, hi: number) => lo + Math.random() * (hi - lo);
+    // cancelled flag prevents the recursive chain from touching shared values
+    // after the component unmounts, eliminating the memory leak.
+    let cancelled = false;
+    let timerId: ReturnType<typeof setTimeout>;
 
     const scheduleNext = () => {
-      const target = randomBetween(config.min, config.max);
-      const t = config.speed * (0.6 + Math.random() * 0.8);
+      if (cancelled) return;
+      const range = config.max - config.min;
+      const target = config.min + Math.random() * range;
+      const duration = config.speed * (0.55 + Math.random() * 0.9);
       heightPct.value = withTiming(target, {
-        duration: t,
+        duration,
         easing: Easing.inOut(Easing.quad),
       });
-      setTimeout(scheduleNext, t);
+      timerId = setTimeout(scheduleNext, duration);
     };
 
-    // Pequeño delay de arranque escalonado para que las barras no se sincronicen
-    const startDelay = Math.random() * config.speed;
-    const id = setTimeout(scheduleNext, startDelay);
-    return () => clearTimeout(id);
+    // Staggered start so bars don't all move in sync
+    timerId = setTimeout(scheduleNext, Math.random() * config.speed);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timerId);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const barStyle = useAnimatedStyle(() => ({
@@ -57,10 +64,7 @@ function AnimatedBar({ config }: AnimatedBarProps) {
         <Animated.View
           style={[
             styles.barFill,
-            {
-              backgroundColor: config.color,
-              shadowColor: config.color,
-            },
+            { backgroundColor: config.color, shadowColor: config.color },
             barStyle,
           ]}
         />
@@ -77,16 +81,16 @@ interface TelemetryGraphProps {
 export default function TelemetryGraph({ isActive }: TelemetryGraphProps) {
   const colors = useColors();
 
-  // Las barras siempre animan — isActive solo cambia la etiqueta del indicador
+  // Bars always animate — isActive only changes the status pill label
   const BARS: BarConfig[] = [
-    { label: 'T-0', color: colors.primary, speed: 320, initial: 45, min: 8, max: 95 },
+    { label: 'T-0', color: colors.primary, speed: 320, initial: 45, min: 8,  max: 95  },
     { label: 'T-1', color: colors.cyan,    speed: 210, initial: 72, min: 12, max: 100 },
-    { label: 'T-2', color: colors.purple,  speed: 390, initial: 30, min: 5,  max: 88 },
-    { label: 'T-3', color: colors.primary, speed: 260, initial: 58, min: 15, max: 92 },
+    { label: 'T-2', color: colors.purple,  speed: 390, initial: 30, min: 5,  max: 88  },
+    { label: 'T-3', color: colors.primary, speed: 260, initial: 58, min: 15, max: 92  },
     { label: 'T-4', color: colors.warning, speed: 180, initial: 88, min: 20, max: 100 },
-    { label: 'T-5', color: colors.cyan,    speed: 340, initial: 22, min: 6,  max: 85 },
-    { label: 'T-6', color: colors.purple,  speed: 270, initial: 65, min: 10, max: 96 },
-    { label: 'T-7', color: colors.primary, speed: 230, initial: 40, min: 8,  max: 90 },
+    { label: 'T-5', color: colors.cyan,    speed: 340, initial: 22, min: 6,  max: 85  },
+    { label: 'T-6', color: colors.purple,  speed: 270, initial: 65, min: 10, max: 96  },
+    { label: 'T-7', color: colors.primary, speed: 230, initial: 40, min: 8,  max: 90  },
   ];
 
   return (

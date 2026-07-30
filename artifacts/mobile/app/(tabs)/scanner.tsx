@@ -45,41 +45,40 @@ export default function ScannerScreen() {
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
-  // Animación de pulso para el botón de escaneo
+  // Scale + opacity pulse while scanning
   const pulseScale = useSharedValue(1);
   const pulseOpacity = useSharedValue(1);
-  // Animación de destello al iniciar escaneo
-  const flashBorder = useSharedValue(0.5);
+  // Shadow glow flicker — only shadowOpacity animated (no layout recalc)
+  const glowOpacity = useSharedValue(0.5);
 
   React.useEffect(() => {
     if (isScanning) {
       pulseScale.value = withRepeat(
         withSequence(withTiming(1.04, { duration: 500 }), withTiming(1, { duration: 500 })),
         -1,
-        false
+        false,
       );
       pulseOpacity.value = withRepeat(withTiming(0.65, { duration: 500 }), -1, true);
-      // Borde parpadeante rápido
-      flashBorder.value = withRepeat(
-        withSequence(withTiming(1, { duration: 200 }), withTiming(0.3, { duration: 200 })),
+      glowOpacity.value = withRepeat(
+        withSequence(withTiming(0.9, { duration: 220 }), withTiming(0.25, { duration: 220 })),
         -1,
-        false
+        false,
       );
     } else {
       pulseScale.value = withTiming(1, { duration: 200 });
       pulseOpacity.value = withTiming(1, { duration: 200 });
-      flashBorder.value = withTiming(0.5, { duration: 300 });
+      glowOpacity.value = withTiming(0.45, { duration: 300 });
     }
   }, [isScanning]);
 
-  const btnStyle = useAnimatedStyle(() => ({
+  const btnWrapStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulseScale.value }],
     opacity: pulseOpacity.value,
   }));
 
-  const btnBorderStyle = useAnimatedStyle(() => ({
-    borderWidth: 1.5 + flashBorder.value,
-    shadowOpacity: flashBorder.value * 0.8,
+  // Only shadowOpacity — keeps borderWidth static so layout never recomputes
+  const btnGlowStyle = useAnimatedStyle(() => ({
+    shadowOpacity: glowOpacity.value,
   }));
 
   const handleScan = () => {
@@ -103,7 +102,13 @@ export default function ScannerScreen() {
         {/* Cabecera */}
         <View style={styles.pageHeader}>
           <Text style={[styles.pageTitle, { color: colors.foreground }]}>CAZA DE AMENAZAS</Text>
-          <View style={[styles.countBadge, { backgroundColor: `${threatCount > 0 ? colors.threat : colors.primary}20`, borderColor: `${threatCount > 0 ? colors.threat : colors.primary}50` }]}>
+          <View style={[
+            styles.countBadge,
+            {
+              backgroundColor: `${threatCount > 0 ? colors.threat : colors.primary}20`,
+              borderColor: `${threatCount > 0 ? colors.threat : colors.primary}50`,
+            },
+          ]}>
             <Text style={[styles.countText, { color: threatCount > 0 ? colors.threat : colors.primary }]}>
               {threatCount} AMENAZAS
             </Text>
@@ -111,7 +116,7 @@ export default function ScannerScreen() {
         </View>
 
         {/* BOTÓN DE ESCANEO */}
-        <Animated.View style={btnStyle}>
+        <Animated.View style={btnWrapStyle}>
           <Animated.View
             style={[
               styles.scanBtn,
@@ -120,7 +125,7 @@ export default function ScannerScreen() {
                 backgroundColor: `${scanBtnColor}15`,
                 shadowColor: scanBtnColor,
               },
-              btnBorderStyle,
+              btnGlowStyle,
             ]}
           >
             <TouchableOpacity
@@ -157,11 +162,11 @@ export default function ScannerScreen() {
           </View>
           {networkStatus ? (
             <>
-              <NetStatusRow label="SSID" value={networkStatus.ssid} ok={true} />
-              <NetStatusRow label="PUERTA DE ENLACE" value={networkStatus.gateway} ok={true} />
-              <NetStatusRow label="DNS" value={networkStatus.dns} ok={true} />
-              <NetStatusRow label="SONDA MitM" value={networkStatus.mitm ? 'ATAQUE DETECTADO' : 'LIMPIO'} ok={!networkStatus.mitm} />
-              <NetStatusRow label="CIFRADO" value={networkStatus.encrypted ? 'WPA3 VÁLIDO' : 'DÉBIL'} ok={networkStatus.encrypted} />
+              <NetStatusRow label="SSID"            value={networkStatus.ssid}                                         ok={true} />
+              <NetStatusRow label="PUERTA DE ENLACE" value={networkStatus.gateway}                                    ok={true} />
+              <NetStatusRow label="DNS"              value={networkStatus.dns}                                         ok={true} />
+              <NetStatusRow label="SONDA MitM"       value={networkStatus.mitm ? 'ATAQUE DETECTADO' : 'LIMPIO'}       ok={!networkStatus.mitm} />
+              <NetStatusRow label="CIFRADO"          value={networkStatus.encrypted ? 'WPA3 VÁLIDO' : 'DÉBIL'}        ok={networkStatus.encrypted} />
             </>
           ) : (
             <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}>
@@ -178,10 +183,10 @@ export default function ScannerScreen() {
           </View>
           {scanState !== 'idle' ? (
             <>
-              <NetStatusRow label="BINARIOS ROOT" value={rootDetected ? 'COMPROMETIDO' : 'LIMPIO'} ok={!rootDetected} />
-              <NetStatusRow label="CLAVES ROM" value="VERSIÓN OFICIAL" ok={true} />
-              <NetStatusRow label="MODO DEBUG" value={debugDetected ? 'ACTIVO — RIESGO' : 'INACTIVO'} ok={!debugDetected} />
-              <NetStatusRow label="ANTI-MANIPULACIÓN" value="ACTIVO" ok={true} />
+              <NetStatusRow label="BINARIOS ROOT"    value={rootDetected  ? 'COMPROMETIDO' : 'LIMPIO'}  ok={!rootDetected}  />
+              <NetStatusRow label="CLAVES ROM"        value="VERSIÓN OFICIAL"                             ok={true}           />
+              <NetStatusRow label="MODO DEBUG"        value={debugDetected ? 'ACTIVO — RIESGO' : 'INACTIVO'} ok={!debugDetected} />
+              <NetStatusRow label="ANTI-MANIPULACIÓN" value="ACTIVO"                                      ok={true}           />
             </>
           ) : (
             <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}>
@@ -228,12 +233,13 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     letterSpacing: 1.5,
   },
+  // No overflow:hidden — shadow glow must not be clipped
   scanBtn: {
+    borderWidth: 1.5,
     borderRadius: 12,
     shadowOffset: { width: 0, height: 0 },
     shadowRadius: 20,
     elevation: 6,
-    overflow: 'hidden',
   },
   scanBtnInner: {
     alignItems: 'center',
