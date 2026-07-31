@@ -9,7 +9,7 @@ workflows:
     scripts:
       - name: Install workspace dependencies
         script: |
-          pnpm install --frozen-lockfile
+          npm install
       - name: Prepare Android native project
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
