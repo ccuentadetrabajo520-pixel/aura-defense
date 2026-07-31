@@ -3,6 +3,7 @@ workflows:
     name: Build Aura Defense Android APK
     max_build_duration: 90
     instance_type: mac_mini_m1
+    working_directory: artifacts/mobile
     environment:
       node: 20
       java: 17
@@ -10,8 +11,6 @@ workflows:
       - name: Install workspace dependencies
         script: |
           corepack enable
-          yarn install
-          cd artifacts/mobile
           yarn install
       - name: Prepare Android native project
         script: |
@@ -21,7 +20,6 @@ workflows:
           if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
             yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
           fi
-          cd artifacts/mobile
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
           pnpm exec expo prebuild --platform android --no-install --clean
       - name: Build Release APK
