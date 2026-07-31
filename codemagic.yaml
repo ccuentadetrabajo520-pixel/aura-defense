@@ -10,7 +10,9 @@ workflows:
       - name: Install workspace dependencies
         script: |
           corepack enable
-          pnpm install --frozen-lockfile
+          yarn install
+          cd artifacts/mobile
+          yarn install
       - name: Prepare Android native project
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
