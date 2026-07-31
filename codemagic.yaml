@@ -10,6 +10,8 @@ workflows:
       - name: Install workspace dependencies
         script: |
           npm install
+          cd artifacts/mobile
+          npm install
       - name: Prepare Android native project
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
