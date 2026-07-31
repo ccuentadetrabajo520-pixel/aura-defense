@@ -8,25 +8,13 @@ workflows:
       node: 20
       java: 17
     scripts:
-      - name: Install workspace dependencies
+      - name: Build all in one step
         script: |
+          cd artifacts/mobile
           corepack enable
-          yarn install --immutable
-      - name: Prepare Android native project
-        script: |
-          cd artifacts/mobile
-            export JAVA_HOME=$JAVA_HOME
-                     export ANDROID_HOME=$ANDROID_SDK_ROOT
-                       export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
-                         npx expo prebuild --platform android --clean
-                           cd android
-                             ./gradlew assembleRelease
-      - name: Build Release APK
-        script: |
-          export JAVA_HOME=$CM_JAVA_HOME
-          export ANDROID_HOME=$CM_ANDROID_SDK_ROOT
-          export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
-          cd artifacts/mobile
-          ./android/gradlew :app:assembleRelease -x lint --no-daemon
+          yarn install
+          npx expo prebuild --platform android --clean
+          cd android
+          ./gradlew assembleRelease
     artifacts:
       - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
