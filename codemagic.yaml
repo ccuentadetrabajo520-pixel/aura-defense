@@ -20,7 +20,7 @@ workflows:
           fi
           cd artifacts/mobile
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
-          pnpm exec expo prebuild --platform android --no-install --clean
+          npx expo prebuild --platform android --no-install --clean
       - name: Build Release APK
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
