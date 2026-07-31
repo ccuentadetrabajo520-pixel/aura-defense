@@ -15,6 +15,9 @@ workflows:
           export JAVA_HOME=$CM_JAVA_HOME
           export ANDROID_HOME=$CM_ANDROID_SDK_ROOT
           export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
+          if [ -x "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+            yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null
+          fi
           cd artifacts/mobile
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
           pnpm exec expo prebuild --platform android --no-install --clean
