@@ -7,7 +7,7 @@ workflows:
       node: 20
       java: 17
     scripts:
-      - name: Build Debug APK
+      - name: Build Release APK
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
           export ANDROID_HOME=$CM_ANDROID_SDK_ROOT
@@ -15,6 +15,6 @@ workflows:
           cd artifacts/android-native
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
           chmod +x bootstrap-gradle.sh
-          ./bootstrap-gradle.sh assembleDebug
+          ./bootstrap-gradle.sh :app:assembleRelease
     artifacts:
-      - artifacts/android-native/app/build/outputs/apk/debug/*.apk
+      - artifacts/android-native/app/build/outputs/apk/release/*.apk
