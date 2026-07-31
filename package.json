@@ -7,8 +7,8 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "mobile:prebuild": "pnpm --filter @workspace/mobile exec expo prebuild --platform android --no-install",
-    "mobile:assemble": "pnpm --filter @workspace/mobile exec ./android/gradlew assembleRelease -x lint --no-daemon"
+    "mobile:prebuild": "pnpm --filter @workspace/mobile exec expo prebuild --platform android --no-install --clean",
+    "mobile:assemble": "pnpm --filter @workspace/mobile exec expo prebuild --platform android --no-install --clean && pnpm --filter @workspace/mobile exec ./android/gradlew assembleRelease -x lint --no-daemon"
   },
   "private": true,
   "dependencies": {

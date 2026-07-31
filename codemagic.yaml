@@ -1,20 +1,29 @@
 workflows:
   android-native:
     name: Build Aura Defense Android APK
-    max_build_duration: 60
+    max_build_duration: 90
     instance_type: mac_mini_m1
     environment:
       node: 20
       java: 17
     scripts:
+      - name: Install workspace dependencies
+        script: |
+          pnpm install --frozen-lockfile
+      - name: Prepare Android native project
+        script: |
+          export JAVA_HOME=$CM_JAVA_HOME
+          export ANDROID_HOME=$CM_ANDROID_SDK_ROOT
+          export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
+          cd artifacts/mobile
+          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
+          pnpm exec expo prebuild --platform android --no-install --clean
       - name: Build Release APK
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
           export ANDROID_HOME=$CM_ANDROID_SDK_ROOT
           export PATH=$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH
-          cd artifacts/android-native
-          printf 'sdk.dir=%s\n' "$ANDROID_HOME" > local.properties
-          chmod +x bootstrap-gradle.sh
-          ./bootstrap-gradle.sh :app:assembleRelease
+          cd artifacts/mobile
+          ./android/gradlew :app:assembleRelease -x lint --no-daemon
     artifacts:
-      - artifacts/android-native/app/build/outputs/apk/release/*.apk
+      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
