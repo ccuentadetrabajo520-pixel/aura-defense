@@ -9,9 +9,8 @@ workflows:
     scripts:
       - name: Install workspace dependencies
         script: |
-          npm install
-          cd artifacts/mobile
-          npm install
+          corepack enable
+          pnpm install --frozen-lockfile
       - name: Prepare Android native project
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
@@ -22,7 +21,7 @@ workflows:
           fi
           cd artifacts/mobile
           printf 'sdk.dir=%s\n' "$ANDROID_HOME" > android/local.properties
-          npx expo prebuild --platform android --no-install --clean
+          pnpm exec expo prebuild --platform android --no-install --clean
       - name: Build Release APK
         script: |
           export JAVA_HOME=$CM_JAVA_HOME
