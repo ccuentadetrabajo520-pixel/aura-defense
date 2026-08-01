@@ -1,21 +1,20 @@
 workflows:
   android-native:
-      name: Build Aura Defense Android APK
-          max_build_duration: 90
-              instance_type: mac_mini_m1
-                  working_directory: .
-                      environment:
-                            node: 20
-                                  java: 17
-                                      scripts:
-                                            - name: Build all in one step
-                                                    script: |
-                                                              cd artifacts/mobile
-                                                                        # Permanently switch to NPM to ignore Yarn Workspaces completely
-                                                                                  rm -rf node_modules yarn.lock package-lock.json
-                                                                                            npm install --force
-                                                                                                      npx expo prebuild --platform android --clean
-                                                                                                                cd android
-                                                                                                                          ./gradlew assembleRelease
-                                                                                                                              artifacts:
-                                                                                                                                    - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
+    name: Build Aura Defense Android APK
+    max_build_duration: 90
+    instance_type: mac_mini_m1
+    working_directory: .
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Build all in one step
+        script: |
+          cd artifacts/mobile
+          rm -rf node_modules yarn.lock package-lock.json
+          npm install --force
+          npx expo prebuild --platform android --clean
+          cd android
+          ./gradlew assembleRelease
+    artifacts:
+      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
