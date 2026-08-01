@@ -65,6 +65,12 @@ const AuraDefenseModule = NativeModules.AuraDefenseModule as {
   uninstallPackage?: (packageName: string) => Promise<boolean>;
 };
 
+const AuraNativeModule = NativeModules.AuraNativeModule as {
+  getNetworkThreatProfile?: () => Promise<{ ssid: string; encryption: string; arpSpoofing: boolean; wpsEnabled: boolean; openCameraEndpoints: string[] }>; 
+  checkPwnedAccount?: (email: string) => Promise<string[]>;
+  isAdultDomainBlocked?: (domain: string) => Promise<boolean>;
+};
+
 const makeId = () =>
   Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
 
@@ -134,6 +140,25 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         await requestSpecialPermission('PACKAGE_USAGE_STATS');
         await requestSpecialPermission('REQUEST_INSTALL_PACKAGES');
         await requestSpecialPermission('FOREGROUND_SERVICE');
+
+        const networkProfile = await AuraNativeModule.getNetworkThreatProfile?.();
+        if (networkProfile) {
+          log('AUDIT', `Wi-Fi profile: ${networkProfile.ssid} / ${networkProfile.encryption}`);
+          if (networkProfile.arpSpoofing) {
+            log('THREAT', 'ARP spoofing detected on the local network.');
+          }
+          if (networkProfile.wpsEnabled) {
+            log('WARN', 'WPS is enabled on the current router.');
+          }
+          if ((networkProfile.openCameraEndpoints?.length ?? 0) > 0) {
+            log('THREAT', `Hidden camera endpoints detected: ${networkProfile.openCameraEndpoints.join(', ')}`);
+          }
+        }
+
+        const breached = await AuraNativeModule.checkPwnedAccount?.('user@example.com');
+        if (breached && breached.length > 0) {
+          log('THREAT', 'Breached account detected in HIBP data.');
+        }
       } catch (error) {
         log('WARN', 'Permission request interrupted or unavailable on this device');
       }
