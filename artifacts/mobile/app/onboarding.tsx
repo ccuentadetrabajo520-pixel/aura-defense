@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Button, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
+import { requestUsageAccessPermission, requestVpnPermission } from '@/hooks/usePermissions';
 
 export default function OnboardingScreen() {
   const colors = useColors();
@@ -21,6 +22,27 @@ export default function OnboardingScreen() {
     }
   };
 
+  const handleUsageAccessSetup = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Android only', 'Usage access is Android-only.');
+      return;
+    }
+    const granted = await requestUsageAccessPermission();
+    Alert.alert(
+      granted ? 'Usage access ready' : 'Manual step required',
+      'Open Settings > Apps > Special app access > Usage access and allow Aura Defense.',
+    );
+  };
+
+  const handleVpnSetup = async () => {
+    if (Platform.OS !== 'android') {
+      Alert.alert('Android only', 'VPN setup is Android-only.');
+      return;
+    }
+    const prepared = await requestVpnPermission();
+    Alert.alert(prepared ? 'VPN ready' : 'VPN permission required', 'Allow Aura Defense to configure the VPN profile from Android.');
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}> 
       <View style={styles.card}>
@@ -35,6 +57,8 @@ export default function OnboardingScreen() {
           autoCapitalize="words"
         />
         <Button title={saving ? 'Guardando…' : 'Continuar'} onPress={saveProfile} disabled={saving} />
+        <Button title="Configure usage access" onPress={handleUsageAccessSetup} />
+        <Button title="Prepare VPN" onPress={handleVpnSetup} />
       </View>
     </View>
   );

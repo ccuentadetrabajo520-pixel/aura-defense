@@ -7,6 +7,12 @@ const AuraDefenseModule = NativeModules.AuraDefenseModule as {
   openPermissionSettings?: (permissionName: string) => Promise<boolean>;
 };
 
+const AuraNativeModule = NativeModules.AuraNativeModule as {
+  prepareVpnService?: () => Promise<boolean>;
+  openUsageAccessSettings?: () => Promise<boolean>;
+  requestUsageAccess?: () => Promise<boolean>;
+};
+
 export async function requestLocationPermission() {
   if (Platform.OS !== 'android') return true;
 
@@ -15,6 +21,24 @@ export async function requestLocationPermission() {
   );
 
   return granted === PermissionsAndroid.RESULTS.GRANTED;
+}
+
+export async function requestUsageAccessPermission() {
+  if (Platform.OS !== 'android') return true;
+  const current = await AuraDefenseModule.getPermissionState?.('PACKAGE_USAGE_STATS');
+  if (current) return true;
+  if (AuraNativeModule.openUsageAccessSettings) {
+    await AuraNativeModule.openUsageAccessSettings();
+  }
+  return false;
+}
+
+export async function requestVpnPermission() {
+  if (Platform.OS !== 'android') return true;
+  if (AuraNativeModule.prepareVpnService) {
+    return AuraNativeModule.prepareVpnService();
+  }
+  return false;
 }
 
 export async function requestSpecialPermission(permissionName: SpecialPermissionName) {
