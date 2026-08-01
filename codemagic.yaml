@@ -11,9 +11,10 @@ workflows:
       - name: Build all in one step
         script: |
           cd artifacts/mobile
-          # Using pnpm to bypass the Yarn lock on Codemagic
-          pnpm install
-          npx expo prebuild --platform android --clean
+          corepack disable
+          # Usamos Yarn porque el servidor de Codemagic lo fuerza. ¡Así dejamos de pelear!
+          yarn install --frozen-lockfile
+          yarn expo prebuild --platform android --clean
           cd android
           ./gradlew assembleRelease
     artifacts:
