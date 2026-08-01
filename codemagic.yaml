@@ -18,4 +18,4 @@ workflows:
           cd android
           ./gradlew assembleRelease --stacktrace --info
     artifacts:
-      - **/*.apk
+      - '**/*.apk'
