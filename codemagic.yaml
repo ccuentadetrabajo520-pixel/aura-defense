@@ -8,15 +8,13 @@ workflows:
       node: 20
       java: 17
     scripts:
-      - name: Install dependencies
-        script: |
-          corepack enable
-          pnpm install --frozen-lockfile
-      - name: Build Android APK
+      - name: Build all in one step
         script: |
           cd artifacts/mobile
-          pnpm exec expo prebuild --platform android --no-install --clean
+          # Using pnpm to bypass the Yarn lock on Codemagic
+          pnpm install
+          npx expo prebuild --platform android --clean
           cd android
-          ./gradlew assembleRelease -x lint --no-daemon
+          ./gradlew assembleRelease
     artifacts:
       - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
