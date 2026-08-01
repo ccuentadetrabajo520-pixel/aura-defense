@@ -13,6 +13,7 @@ workflows:
           cd artifacts/mobile
           rm -rf node_modules yarn.lock package-lock.json
           npm install --force
+          npx expo export --platform android --output-dir dist || exit 0
           npx expo prebuild --platform android --clean
           cd android
           ./gradlew assembleRelease
