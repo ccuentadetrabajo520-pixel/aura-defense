@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { NativeEventEmitter, NativeModules, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
@@ -29,6 +29,7 @@ const eventEmitter = module ? new NativeEventEmitter(module) : null;
 export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: RadarHUDProps) {
   const colors = useColors();
   const rotation = useSharedValue(0);
+  const rotationRef = useRef(0);
   const pulseVal = useSharedValue(0.5);
 
   const half = size / 2;
@@ -62,12 +63,14 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
 
   useEffect(() => {
     const dur = isScanning ? 1100 : 3200;
+    const nextRotation = rotationRef.current + 360;
+    rotationRef.current = nextRotation;
     rotation.value = withRepeat(
-      withTiming(360, { duration: dur, easing: Easing.linear }),
+      withTiming(nextRotation, { duration: dur, easing: Easing.linear }),
       -1,
-      false
+      false,
     );
-  }, [isScanning]);
+  }, [isScanning, rotation]);
 
   useEffect(() => {
     pulseVal.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);

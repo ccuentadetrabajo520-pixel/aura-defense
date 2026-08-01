@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Alert,
+  Linking,
   Platform,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
+import * as Permissions from 'expo-permissions';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -53,9 +55,48 @@ export default function OnboardingScreen() {
     Alert.alert(prepared ? 'VPN ready' : 'VPN permission required', 'Allow Aura Defense to configure the VPN profile from Android.');
   };
 
+  const ensureCriticalPermissions = async (): Promise<boolean> => {
+    if (Platform.OS !== 'android') {
+      return true;
+    }
+
+    const [location, notifications, usage] = await Promise.all([
+      Permissions.getAsync(Permissions.LOCATION),
+      Permissions.getAsync(Permissions.NOTIFICATIONS),
+      Permissions.getAsync((Permissions as any).PACKAGE_USAGE_STATS),
+    ]);
+
+    const granted =
+      location.status === 'granted' &&
+      notifications.status === 'granted' &&
+      usage.status === 'granted';
+
+    if (!granted) {
+      Alert.alert(
+        'Aura needs these permissions to scan your network and apps. Please enable them in Settings.',
+        'Location, notifications, and app usage access are required.',
+        [
+          {
+            text: 'Open Settings',
+            onPress: () => Linking.openSettings(),
+          },
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleMissionAccept = async () => {
     setSaving(true);
     try {
+      const permissionsReady = await ensureCriticalPermissions();
+      if (!permissionsReady) {
+        return;
+      }
+
       const biometricAvailable = await LocalAuthentication.getEnrolledLevelAsync();
       if (biometricAvailable !== LocalAuthentication.SecurityLevel.NONE) {
         const result = await LocalAuthentication.authenticateAsync({
@@ -118,7 +159,16 @@ export default function OnboardingScreen() {
             <TouchableOpacity style={[styles.secondaryButton, { borderColor: colors.border }]} onPress={handleVpnSetup}>
               <Text style={[styles.secondaryButtonText, { color: colors.foreground }]}>Preparar VPN</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.primaryButton, { backgroundColor: colors.cyan }]} onPress={() => setStep('terms')}>
+            <TouchableOpacity
+              style={[styles.primaryButton, { backgroundColor: colors.cyan }]}
+              onPress={async () => {
+                const allowed = await ensureCriticalPermissions();
+                if (!allowed) {
+                  return;
+                }
+                setStep('terms');
+              }}
+            >
               <Text style={styles.primaryButtonText}>Continuar</Text>
             </TouchableOpacity>
           </View>
