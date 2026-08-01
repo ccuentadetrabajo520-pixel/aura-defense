@@ -1,24 +1,28 @@
 workflows:
   android-native:
-    name: Build Aura Defense Android APK
-    max_build_duration: 90
-    instance_type: mac_mini_m1
-    working_directory: .
-    environment:
-      node: 20
-      java: 17
-    scripts:
-      - name: Build all in one step
-        script: |
-          cd artifacts/mobile
-          # BORRAMOS el archivo de Yarn corrupto que tiene la máquina virtual de Codemagic
-          sudo rm -f /usr/local/bin/yarn
-          # FORZAMOS la instalación global de Yarn limpio
-          npm install -g yarn --force
-          # Yarn ya funciona sin bloqueos
-          yarn install --frozen-lockfile
-          npx expo prebuild --platform android --clean
-          cd android
-          ./gradlew assembleRelease
-    artifacts:
-      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
+      name: Build Aura Defense Android APK
+          max_build_duration: 90
+              instance_type: mac_mini_m1
+                  working_directory: .
+                      environment:
+                            node: 20
+                                  java: 17
+                                      scripts:
+                                            - name: Build all in one step
+                                                    script: |
+                                                              cd artifacts/mobile
+                                                                        # Remove the broken Yarn binary cached by the VM
+                                                                                  sudo rm -f /usr/local/bin/yarn || true
+                                                                                            rm -f /usr/local/bin/yarn || true
+                                                                                                      
+                                                                                                                # ENABLE COREPACK. This is the magic fix: it reads "packageManager": "yarn@4.9.2" 
+                                                                                                                          # and automatically downloads and uses the exact Yarn version required.
+                                                                                                                                    corepack enable
+                                                                                                                                              
+                                                                                                                                                        # Install dependencies with the newly activated Yarn 4.9.2
+                                                                                                                                                                  yarn install
+                                                                                                                                                                            yarn expo prebuild --platform android --clean
+                                                                                                                                                                                      cd android
+                                                                                                                                                                                                ./gradlew assembleRelease
+                                                                                                                                                                                                    artifacts:
+                                                                                                                                                                                                          - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
