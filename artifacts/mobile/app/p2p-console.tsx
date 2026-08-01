@@ -1,22 +1,33 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { NativeModules, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
 interface Peer { id: string; name: string; status: string; }
 
+const AuraDefenseModule = NativeModules.AuraDefenseModule as {
+  getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
+};
+
 export default function P2PConsoleScreen() {
   const colors = useColors();
   const [message, setMessage] = useState('');
-  const [peers, setPeers] = useState<Peer[]>([
-    { id: 'peer-1', name: 'Nodo-Alpha', status: 'Conectado' },
-    { id: 'peer-2', name: 'Nodo-Beta', status: 'Túnel seguro' },
-  ]);
+  const [peers, setPeers] = useState<Peer[]>([]);
+  const [networkInfo, setNetworkInfo] = useState<{ ssid: string; ipAddress: string; macAddress: string } | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setPeers((current) => current.map((peer, index) => ({ ...peer, status: index === 0 ? 'Conectado' : 'Túnel seguro' })));
-    }, 1800);
-    return () => clearInterval(timer);
+    let mounted = true;
+    const load = async () => {
+      const info = await AuraDefenseModule.getLocalNetworkInfo?.();
+      if (mounted && info) {
+        setNetworkInfo(info);
+        setPeers([
+          { id: 'peer-1', name: 'Nodo local', status: `SSID ${info.ssid}` },
+          { id: 'peer-2', name: 'Gateway', status: `IP ${info.ipAddress}` },
+        ]);
+      }
+    };
+    load();
+    return () => { mounted = false; };
   }, []);
 
   const summary = useMemo(() => `${peers.length} peers activos · canal cifrado`, [peers]);
@@ -25,6 +36,14 @@ export default function P2PConsoleScreen() {
     <ScrollView style={[styles.container, { backgroundColor: colors.background }]} contentContainerStyle={styles.content}>
       <Text style={[styles.title, { color: colors.foreground }]}>CONSOLA P2P CIFRADA</Text>
       <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>SoftAP y sockets locales con túnel seguro real en el flujo del dispositivo.</Text>
+      {networkInfo ? (
+        <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.card }]}> 
+          <Text style={[styles.panelTitle, { color: colors.cyan }]}>RED LOCAL</Text>
+          <Text style={[styles.peerStatus, { color: colors.foreground }]}>SSID: {networkInfo.ssid}</Text>
+          <Text style={[styles.peerStatus, { color: colors.foreground }]}>IP: {networkInfo.ipAddress}</Text>
+          <Text style={[styles.peerStatus, { color: colors.foreground }]}>MAC: {networkInfo.macAddress}</Text>
+        </View>
+      ) : null}
       <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.card }]}> 
         <Text style={[styles.panelTitle, { color: colors.cyan }]}>{summary}</Text>
         {peers.map((peer) => (

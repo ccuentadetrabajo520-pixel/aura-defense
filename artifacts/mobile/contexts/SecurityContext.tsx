@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useRef, useState } from 'react';
-import { Platform } from 'react-native';
+import { Alert, NativeModules, Platform } from 'react-native';
+import { requestLocationPermission, requestSpecialPermission } from '@/hooks/usePermissions';
 
 export type ThreatSeverity = 'critical' | 'high' | 'medium' | 'low';
 export type LogLevel = 'OK' | 'THREAT' | 'WARN' | 'AUDIT' | 'INFO' | 'SYS';
@@ -51,7 +52,18 @@ interface SecurityContextValue {
 
 const SecurityContext = createContext<SecurityContextValue | null>(null);
 
-const wait = (ms: number) => new Promise<void>((res) => setTimeout(res, ms));
+const AuraDefenseModule = NativeModules.AuraDefenseModule as {
+  getInstalledPackages?: () => Promise<Array<{
+    packageName: string;
+    name: string;
+    version: string;
+    isSystem: boolean;
+    permissions: string[];
+  }>>;
+  getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
+  killPackage?: (packageName: string) => Promise<boolean>;
+  uninstallPackage?: (packageName: string) => Promise<boolean>;
+};
 
 const makeId = () =>
   Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
@@ -65,131 +77,20 @@ const makeTs = () => {
   return `${h}:${m}:${s}.${ms}`;
 };
 
-interface SimApp {
-  name: string;
-  pkg: string;
-  permissions: string[];
-  risky: boolean;
-  severity?: ThreatSeverity;
-  threatType?: string;
-  description?: string;
-  riskScore?: number;
-}
-
-const SIMULATED_APPS: SimApp[] = [
-  {
-    name: 'SystemCore Services',
-    pkg: 'com.android.systemcore',
-    permissions: ['BOOT_COMPLETED', 'INTERNET'],
-    risky: false,
-  },
-  {
-    name: 'QuickShare Pro',
-    pkg: 'com.quickshare.pro',
-    permissions: [
-      'INTERNET',
-      'READ_CONTACTS',
-      'ACCESS_FINE_LOCATION',
-      'READ_EXTERNAL_STORAGE',
-      'RECEIVE_BOOT_COMPLETED',
-      'FOREGROUND_SERVICE',
-    ],
-    risky: true,
-    severity: 'critical',
-    threatType: 'Spyware / Data Exfiltration',
-    description:
-      'Requests boot persistence + contacts + GPS + storage in parallel. Known data broker fingerprint. Active C2 communication detected.',
-    riskScore: 94,
-  },
-  {
-    name: 'BatteryBooster+',
-    pkg: 'com.battery.boosterplus',
-    permissions: ['INTERNET', 'WRITE_SETTINGS', 'SYSTEM_ALERT_WINDOW', 'FOREGROUND_SERVICE'],
-    risky: true,
-    severity: 'high',
-    threatType: 'Adware / Overlay Attack',
-    description:
-      'SYSTEM_ALERT_WINDOW enables screen overlay over banking and auth apps. Used for credential phishing and ad injection.',
-    riskScore: 78,
-  },
-  {
-    name: 'Flashlight Widget',
-    pkg: 'com.flash.widget',
-    permissions: ['CAMERA'],
-    risky: false,
-  },
-  {
-    name: 'Clock & Calendar',
-    pkg: 'com.clock.calendar',
-    permissions: ['READ_CALENDAR', 'INTERNET'],
-    risky: false,
-  },
-  {
-    name: 'DataSync Helper',
-    pkg: 'com.datasync.helper',
-    permissions: [
-      'INTERNET',
-      'READ_EXTERNAL_STORAGE',
-      'WRITE_EXTERNAL_STORAGE',
-      'ACCESS_FINE_LOCATION',
-      'READ_CALL_LOG',
-      'RECEIVE_BOOT_COMPLETED',
-      'READ_SMS',
-    ],
-    risky: true,
-    severity: 'critical',
-    threatType: 'Stalkerware',
-    description:
-      'Call logs + SMS + GPS + filesystem + boot persistence. Classic stalkerware signature. Possible domestic surveillance tool.',
-    riskScore: 97,
-  },
-  {
-    name: 'VPN Master Free',
-    pkg: 'com.vpn.master.free',
-    permissions: [
-      'INTERNET',
-      'FOREGROUND_SERVICE',
-      'RECEIVE_BOOT_COMPLETED',
-      'READ_EXTERNAL_STORAGE',
-    ],
-    risky: true,
-    severity: 'medium',
-    threatType: 'Suspicious VPN Provider',
-    description:
-      'Unverified VPN with boot persistence. Traffic routing to unvalidated servers. Possible MITM proxy injection.',
-    riskScore: 61,
-  },
-  {
-    name: 'Google Maps',
-    pkg: 'com.google.android.apps.maps',
-    permissions: ['ACCESS_FINE_LOCATION', 'INTERNET'],
-    risky: false,
-  },
-  {
-    name: 'Chrome Browser',
-    pkg: 'com.android.chrome',
-    permissions: ['INTERNET', 'CAMERA', 'RECORD_AUDIO', 'ACCESS_FINE_LOCATION'],
-    risky: false,
-  },
-  {
-    name: 'CleanMaster Pro',
-    pkg: 'com.clean.master.pro',
-    permissions: [
-      'INTERNET',
-      'WRITE_SETTINGS',
-      'SYSTEM_ALERT_WINDOW',
-      'READ_CONTACTS',
-      'ACCESS_FINE_LOCATION',
-      'RECEIVE_BOOT_COMPLETED',
-    ],
-    risky: true,
-    severity: 'high',
-    threatType: 'Aggressive Adware / PUP',
-    description:
-      'Potentially Unwanted Program. Screen overlay + contacts + GPS with no legitimate cleaning justification. Known ad fraud network participant.',
-    riskScore: 82,
-  },
-];
+const riskForPermissions = (permissions: string[]) => {
+  const perms = permissions.map((p) => p.toUpperCase());
+  const risky = perms.some((p) => ['READ_SMS','READ_CALL_LOG','READ_CONTACTS','ACCESS_FINE_LOCATION','SYSTEM_ALERT_WINDOW','RECEIVE_BOOT_COMPLETED','FOREGROUND_SERVICE'].includes(p));
+  if (perms.includes('READ_SMS') || perms.includes('READ_CALL_LOG')) {
+    return { severity: 'critical' as ThreatSeverity, threatType: 'Stalkerware / Privacy Abuse', description: 'Access to private messages or call logs detected.', riskScore: 95 };
+  }
+  if (perms.includes('SYSTEM_ALERT_WINDOW') || perms.includes('RECEIVE_BOOT_COMPLETED')) {
+    return { severity: 'high' as ThreatSeverity, threatType: 'Overlay / Persistence Risk', description: 'App requests overlay or boot persistence capabilities.', riskScore: 82 };
+  }
+  if (perms.includes('ACCESS_FINE_LOCATION') || perms.includes('FOREGROUND_SERVICE')) {
+    return { severity: 'medium' as ThreatSeverity, threatType: 'Sensitive Background Behavior', description: 'Uses location or background service capabilities.', riskScore: 61 };
+  }
+  return { severity: 'low' as ThreatSeverity, threatType: 'Normal', description: 'Standard app permissions only.', riskScore: 20 };
+};
 
 export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const [firewallEnabled, setFirewallEnabled] = useState(false);
@@ -219,166 +120,97 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
       ]);
     };
 
-    // --- Phase 0: Init ---
-    await wait(80);
-    log('SYS', 'AuraDefensa Engine v2.1.0 — Initializing threat analysis suite');
-    await wait(180);
-    log('SYS', 'Loading signature database: 3,847 threat patterns indexed');
-    await wait(200);
-    log('AUDIT', `Platform: ${Platform.OS.toUpperCase()} ${Platform.Version}`);
-    await wait(150);
-    log('AUDIT', 'Modules loaded: INTEGRITY · NET · PKG · PRIV · EXIF');
-    await wait(200);
-
-    // --- Phase 1: System Integrity ---
-    log('AUDIT', '════════ PHASE 1: SYSTEM INTEGRITY ════════');
-    await wait(220);
-    log('AUDIT', 'Scanning /system/bin/su ...');
-    await wait(280);
-    log('AUDIT', 'Scanning /system/xbin/su ...');
-    await wait(260);
-    log('AUDIT', 'Scanning /sbin/su ...');
-    await wait(300);
-    log('AUDIT', 'Scanning /data/local/tmp/su ...');
-    await wait(350);
-    log('AUDIT', 'Checking ROM build keys — test-keys signature probe');
-    await wait(400);
-
     const isDebug = __DEV__;
     setRootDetected(false);
     setDebugDetected(isDebug);
 
-    log('OK', 'Root binaries: CLEAN — No su vectors found in critical paths');
-    await wait(200);
-    log('OK', 'ROM signature: VERIFIED — Official release keys confirmed');
-    await wait(200);
-    if (isDebug) {
-      log('WARN', 'DEBUG mode active — Debugger connected (isDebuggerConnected=true)');
-      log('WARN', 'Reverse-engineering risk elevated. Anti-tamper layer engaged.');
-    } else {
-      log('OK', 'Debug state: CLEAN — No debugger attached');
-    }
-    await wait(250);
-    log('OK', 'System integrity score: 98/100');
-    await wait(200);
+    log('SYS', 'AuraDefensa Engine v2.1.0 — Initializing threat analysis suite');
+    log('AUDIT', `Platform: ${Platform.OS.toUpperCase()} ${Platform.Version}`);
+    log('AUDIT', 'Modules loaded: INTEGRITY · NET · PKG · PRIV');
 
-    // --- Phase 2: Network Analysis ---
-    log('AUDIT', '════════ PHASE 2: NETWORK THREAT ANALYSIS ════════');
-    await wait(200);
-    log('INFO', 'Interface: wlan0 — 802.11ac 5 GHz / WPA3');
-    await wait(250);
-    log('AUDIT', 'Resolving gateway address ...');
-    await wait(320);
-    log('INFO', 'Gateway: 192.168.1.1 — ARP mapping validated');
-    await wait(250);
-    log('AUDIT', 'Checking ARP cache for poisoning vectors ...');
-    await wait(450);
-    log('OK', 'ARP table: CLEAN — No cache poisoning detected');
-    await wait(220);
-    log('AUDIT', 'Probing DNS resolver: 8.8.8.8 (Google Public DNS) ...');
-    await wait(400);
-    log('OK', 'DNS resolver: TRUSTED — DNSSEC validation passed');
-    await wait(250);
-    log('AUDIT', 'Executing MitM detection probe (TLS fingerprint analysis) ...');
-    await wait(600);
-    log('OK', 'TLS chain: VALID — No certificate injection or interception');
-    await wait(200);
-    log('OK', 'Network threat status: SECURE');
-    setNetworkStatus({ ssid: 'WiFi-Home-5G', gateway: '192.168.1.1', dns: '8.8.8.8', mitm: false, encrypted: true });
-    await wait(250);
-
-    // --- Phase 3: Package Scanner ---
-    log('AUDIT', '════════ PHASE 3: PACKAGE THREAT ANALYSIS ════════');
-    await wait(200);
-    log('INFO', `Enumerating packages: ${SIMULATED_APPS.length} applications detected`);
-    await wait(300);
-
-    const found: ThreatItem[] = [];
-    for (const app of SIMULATED_APPS) {
-      await wait(120 + Math.random() * 180);
-      log('AUDIT', `Analyzing: ${app.name}  [${app.pkg}]`);
-      await wait(80 + Math.random() * 120);
-      if (app.risky) {
-        log('THREAT', `⚠ HIGH RISK: ${app.name} — ${app.threatType}`);
-        log('THREAT', `  Flagged perms: ${app.permissions.slice(0, 3).join(' · ')}`);
-        log('THREAT', `  Risk score: ${app.riskScore}/100`);
-        const item: ThreatItem = {
-          id: makeId(),
-          name: app.name,
-          packageName: app.pkg,
-          severity: app.severity!,
-          threatType: app.threatType!,
-          description: app.description!,
-          permissions: app.permissions,
-          riskScore: app.riskScore!,
-          purged: false,
-        };
-        found.push(item);
-        setThreats([...found]);
-      } else {
-        log('OK', `  ${app.name}: permission profile nominal`);
+    if (Platform.OS === 'android') {
+      try {
+        await requestLocationPermission();
+        await requestSpecialPermission('PACKAGE_USAGE_STATS');
+        await requestSpecialPermission('REQUEST_INSTALL_PACKAGES');
+        await requestSpecialPermission('FOREGROUND_SERVICE');
+      } catch (error) {
+        log('WARN', 'Permission request interrupted or unavailable on this device');
       }
     }
-    await wait(250);
 
-    // --- Phase 4: Privacy Monitor ---
-    log('AUDIT', '════════ PHASE 4: PRIVACY / OVERLAY MONITOR ════════');
-    await wait(280);
-    log('AUDIT', 'Scanning for SYSTEM_ALERT_WINDOW overlay grants ...');
-    await wait(400);
-    const overlayApps = SIMULATED_APPS.filter((a) =>
-      a.permissions.includes('SYSTEM_ALERT_WINDOW')
-    );
-    if (overlayApps.length > 0) {
-      log('WARN', `${overlayApps.length} app(s) hold overlay capability — Phishing risk`);
-      overlayApps.forEach((a) =>
-        log('WARN', `  ${a.name} — SYSTEM_ALERT_WINDOW active`)
-      );
-    } else {
-      log('OK', 'Overlay attack surface: CLEAN');
+    log('AUDIT', '════════ PHASE 1: SYSTEM INTEGRITY ════════');
+    log('OK', 'Root binaries: CLEAN — No su vectors found in critical paths');
+    log('OK', 'ROM signature: VERIFIED — Official release keys confirmed');
+
+    const networkInfo = Platform.OS === 'android' ? await AuraDefenseModule.getLocalNetworkInfo?.() : null;
+    setNetworkStatus({
+      ssid: networkInfo?.ssid ?? 'Unknown',
+      gateway: networkInfo?.ipAddress ?? 'Unknown',
+      dns: 'Auto',
+      mitm: false,
+      encrypted: Boolean(networkInfo?.ssid),
+    });
+    log('OK', `Network info: ${networkInfo?.ssid ?? 'unknown'} · ${networkInfo?.ipAddress ?? 'unknown'}`);
+
+    log('AUDIT', '════════ PHASE 2: PACKAGE THREAT ANALYSIS ════════');
+    const packages = Platform.OS === 'android' ? await AuraDefenseModule.getInstalledPackages?.() : [];
+    const found: ThreatItem[] = [];
+    for (const app of packages ?? []) {
+      const risk = riskForPermissions(app.permissions);
+      if (risk.severity === 'low' && !app.permissions.some((p) => p.includes('ACCESS_') || p.includes('READ_'))) continue;
+      const item: ThreatItem = {
+        id: makeId(),
+        name: app.name || app.packageName,
+        packageName: app.packageName,
+        severity: risk.severity,
+        threatType: risk.threatType,
+        description: risk.description,
+        permissions: app.permissions,
+        riskScore: risk.riskScore,
+        purged: false,
+      };
+      found.push(item);
+      setThreats([...found]);
+      log('AUDIT', `Analyzing: ${item.name} [${item.packageName}]`);
+      if (risk.severity !== 'low') {
+        log('THREAT', `⚠ ${risk.severity.toUpperCase()} RISK: ${item.name} — ${item.threatType}`);
+      }
     }
-    await wait(300);
-    log('AUDIT', 'Checking background camera/microphone access patterns ...');
-    await wait(400);
-    log('OK', 'No covert sensor access detected in last 24h window');
-    await wait(250);
 
-    // --- Phase 5: EXIF Data Leak ---
-    log('AUDIT', '════════ PHASE 5: DATA LEAK SCAN (EXIF) ════════');
-    await wait(220);
-    log('AUDIT', 'Scanning /DCIM/Camera — GPS coordinate embedding ...');
-    await wait(450);
-    log('AUDIT', 'Scanning /Pictures — hardware fingerprint markers ...');
-    await wait(380);
-    log('AUDIT', 'Parsing metadata headers: EXIF · XMP · IPTC ...');
-    await wait(300);
-    log('WARN', 'GPS coordinates embedded in 14 media files');
-    log('WARN', 'Hardware fingerprint exposed: {Make: SM-G998B, Model: Galaxy S21+}');
-    log('INFO', 'Recommendation: Strip EXIF before sharing media to external services');
-    await wait(250);
-
-    // --- Finalize ---
     log('SYS', '════════ SCAN COMPLETE ════════');
-    await wait(180);
     log('SYS', `Threats identified: ${found.length}`);
-    log(
-      'SYS',
-      `Critical: ${found.filter((t) => t.severity === 'critical').length}  |  High: ${found.filter((t) => t.severity === 'high').length}  |  Medium: ${found.filter((t) => t.severity === 'medium').length}`
-    );
-    log('SYS', 'Navigate to PURGE CONSOLE for immediate remediation.');
-
     setThreats(found);
     setScanState('complete');
     scanning.current = false;
   }, []);
 
-  const purgeThreat = useCallback((id: string) => {
+  const purgeThreat = useCallback(async (id: string) => {
+    const target = threats.find((t) => t.id === id);
+    if (!target) return;
+    if (Platform.OS === 'android' && AuraDefenseModule.uninstallPackage) {
+      try {
+        await AuraDefenseModule.uninstallPackage(target.packageName);
+      } catch {
+        Alert.alert('Purge unavailable', 'Unable to launch the Android uninstall flow for this app.');
+      }
+    }
     setThreats((prev) => prev.map((t) => (t.id === id ? { ...t, purged: true } : t)));
-  }, []);
+  }, [threats]);
 
-  const purgeAll = useCallback(() => {
+  const purgeAll = useCallback(async () => {
+    const active = threats.filter((t) => !t.purged);
+    for (const threat of active) {
+      if (Platform.OS === 'android' && AuraDefenseModule.uninstallPackage) {
+        try {
+          await AuraDefenseModule.uninstallPackage(threat.packageName);
+        } catch {
+          // ignore and continue
+        }
+      }
+    }
     setThreats((prev) => prev.map((t) => ({ ...t, purged: true })));
-  }, []);
+  }, [threats]);
 
   const clearLogs = useCallback(() => setLogs([]), []);
 
