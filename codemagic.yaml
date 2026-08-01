@@ -11,9 +11,11 @@ workflows:
       - name: Build all in one step
         script: |
           cd artifacts/mobile
-          # Instalamos Yarn dentro del build porque la máquina de Codemagic no lo tiene.
-          npm install -g yarn
-          corepack disable
+          # BORRAMOS el archivo de Yarn corrupto que tiene la máquina virtual de Codemagic
+          sudo rm -f /usr/local/bin/yarn
+          # FORZAMOS la instalación global de Yarn limpio
+          npm install -g yarn --force
+          # Yarn ya funciona sin bloqueos
           yarn install --frozen-lockfile
           npx expo prebuild --platform android --clean
           cd android
