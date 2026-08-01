@@ -8,15 +8,15 @@ workflows:
       node: 20
       java: 17
     scripts:
-      - name: Build all in one step
+      - name: Install dependencies
+        script: |
+          corepack enable
+          pnpm install --frozen-lockfile
+      - name: Build Android APK
         script: |
           cd artifacts/mobile
-          # Limpieza profunda para evitar conflictos de Yarn y NPM
-          rm -rf node_modules yarn.lock package-lock.json
-          corepack disable
-          npm install --force
-          npx expo prebuild --platform android --clean
+          pnpm exec expo prebuild --platform android --no-install --clean
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease -x lint --no-daemon
     artifacts:
       - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
