@@ -16,6 +16,6 @@ workflows:
           npx expo export --platform android --output-dir dist || exit 0
           npx expo prebuild --platform android --clean
           cd android
-          ./gradlew assembleRelease
+          ./gradlew assembleRelease --stacktrace --info
     artifacts:
-      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
+      - **/*.apk
