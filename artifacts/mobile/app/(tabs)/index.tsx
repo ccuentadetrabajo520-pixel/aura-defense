@@ -16,11 +16,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialCommunityIcons, Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSecurity } from '@/contexts/SecurityContext';
 import { useColors } from '@/hooks/useColors';
 import RadarHUD from '@/components/RadarHUD';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
 function StatusIndicator({ label, value, ok }: { label: string; value: string; ok: boolean }) {
@@ -58,9 +58,9 @@ export default function ShieldScreen() {
 
   useEffect(() => {
     let active = true;
-    AsyncStorage.getItem('aura-user-name').then((value) => {
-      if (active && value) {
-        setProfileName(value);
+    SecureStore.getItemAsync('aura-user-name').then((value) => {
+      if (active && value && value.trim()) {
+        setProfileName(value.trim());
       }
     });
     return () => {

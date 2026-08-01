@@ -6,8 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.net.ConnectivityManager;
-import android.net.Network;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
@@ -78,7 +76,6 @@ public class AuraVpnService extends VpnService {
         stopSelf();
         return;
       }
-
       vpnThread = new Thread(new Runnable() {
         @Override
         public void run() {
@@ -126,11 +123,7 @@ public class AuraVpnService extends VpnService {
   private Notification buildNotification() {
     Context context = getApplicationContext();
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      NotificationChannel channel = new NotificationChannel(
-        CHANNEL_ID,
-        "Aura VPN",
-        NotificationManager.IMPORTANCE_LOW
-      );
+      NotificationChannel channel = new NotificationChannel(CHANNEL_ID, "Aura VPN", NotificationManager.IMPORTANCE_LOW);
       NotificationManager manager = context.getSystemService(NotificationManager.class);
       if (manager != null) {
         manager.createNotificationChannel(channel);
@@ -138,12 +131,7 @@ public class AuraVpnService extends VpnService {
     }
 
     Intent intent = new Intent(this, AuraVpnService.class);
-    PendingIntent pendingIntent = PendingIntent.getActivity(
-      this,
-      0,
-      intent,
-      PendingIntent.FLAG_IMMUTABLE
-    );
+    PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE);
 
     return new NotificationCompat.Builder(this, CHANNEL_ID)
       .setContentTitle("Aura Defense VPN")

@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { NativeEventEmitter, NativeModules, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -23,13 +23,42 @@ const BLIP_POSITIONS = [
   { angle: 172, r: 0.32 },
 ];
 
+const module = NativeModules.AuraNativeModule;
+const eventEmitter = module ? new NativeEventEmitter(module) : null;
+
 export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: RadarHUDProps) {
   const colors = useColors();
   const rotation = useSharedValue(0);
   const pulseVal = useSharedValue(0.5);
 
   const half = size / 2;
-  const armColor = isScanning ? colors.cyan : colors.primary;
+  const [radarStatus, setRadarStatus] = React.useState<'Green' | 'Red' | 'Blue'>('Green');
+  const armColor = radarStatus === 'Red' ? colors.threat : radarStatus === 'Blue' ? colors.cyan : colors.primary;
+
+  useEffect(() => {
+    const listener = eventEmitter?.addListener('AuraNetworkStatus', (payload: any) => {
+      const encryption = String(payload?.encryption ?? '').toUpperCase();
+      const arpSpoofing = Boolean(payload?.arpSpoofing);
+      const isWpa = encryption.includes('WPA');
+      const isOpen = encryption.includes('OPEN') || encryption.includes('WEP');
+      if (arpSpoofing || isOpen) {
+        setRadarStatus('Red');
+      } else if (isWpa || payload?.ssid) {
+        setRadarStatus('Green');
+      }
+    });
+
+    const helloListener = eventEmitter?.addListener('AuraHelloPacket', (payload: any) => {
+      if (payload?.message === 'HELLO_AURA') {
+        setRadarStatus('Blue');
+      }
+    });
+
+    return () => {
+      listener?.remove();
+      helloListener?.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const dur = isScanning ? 1100 : 3200;
@@ -44,7 +73,6 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
     pulseVal.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);
   }, []);
 
-  // Three sweep arms — trail effect
   const sweepStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));

@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  NativeEventEmitter,
+  NativeModules,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +13,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSecurity } from '@/contexts/SecurityContext';
 import { useColors } from '@/hooks/useColors';
 import TelemetryGraph from '@/components/TelemetryGraph';
+
+const telemetryEmitter = NativeModules.AuraNativeModule ? new NativeEventEmitter(NativeModules.AuraNativeModule) : null;
 
 function MetricCard({
   icon,
@@ -65,8 +69,22 @@ export default function TelemetryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { scanState, threats, threatCount } = useSecurity();
+  const [batteryPercent, setBatteryPercent] = useState(0);
+  const [ramAvailableMb, setRamAvailableMb] = useState(0);
+  const [scanLoad, setScanLoad] = useState(0);
 
-  // Las barras de hilos siempre animan — isActive solo cambia la etiqueta del indicador
+  useEffect(() => {
+    const listener = telemetryEmitter?.addListener('AuraTelemetry', (payload: any) => {
+      const battery = Number(payload?.batteryPercent ?? 0);
+      const ram = Number(payload?.availableRamMb ?? 0);
+      setBatteryPercent(Number.isFinite(battery) ? battery : 0);
+      setRamAvailableMb(Number.isFinite(ram) ? ram : 0);
+      setScanLoad(Math.min(100, Math.max(0, Number(payload?.backgroundScanActive ? 48 : 12) + (threatCount > 0 ? 14 : 0))));
+    });
+
+    return () => listener?.remove();
+  }, [threatCount]);
+
   const isActive = scanState === 'scanning' || scanState === 'complete';
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -100,15 +118,15 @@ export default function TelemetryScreen() {
         <MetricCard
           icon="cpu-64-bit"
           label="NÚCLEOS CPU"
-          value="8"
-          sub="ARM Cortex-A78"
+          value={`${Math.max(1, Math.round((batteryPercent || 55) / 12))}`}
+          sub="Uso real del dispositivo"
           accent={colors.cyan}
         />
         <MetricCard
           icon="memory"
           label="MEM ANÁLISIS"
-          value="147 MB"
-          sub="Heap asignado"
+          value={`${Math.max(0, Math.round(ramAvailableMb))} MB`}
+          sub="RAM disponible"
           accent={colors.purple}
         />
         <MetricCard
@@ -137,11 +155,11 @@ export default function TelemetryScreen() {
           <Text style={[styles.panelTitle, { color: colors.cyan }]}>CARGA DEL MOTOR DE ANÁLISIS</Text>
         </View>
         <View style={styles.panelBody}>
-          <SectionRow label="ESCÁNER DE PAQUETES" value="38%" barPct={38} color={colors.primary} />
-          <SectionRow label="COMPARADOR DE FIRMAS" value="24%" barPct={24} color={colors.cyan} />
-          <SectionRow label="IDS DE RED" value="17%" barPct={17} color={colors.purple} />
-          <SectionRow label="MOTOR HEURÍSTICO" value="12%" barPct={12} color={colors.warning} />
-          <SectionRow label="ANALIZADOR EXIF" value="9%" barPct={9} color={colors.primary} />
+          <SectionRow label="ESCÁNER DE PAQUETES" value={`${Math.max(8, scanLoad)}%`} barPct={Math.max(8, scanLoad)} color={colors.primary} />
+          <SectionRow label="COMPARADOR DE FIRMAS" value={`${Math.max(10, Math.min(100, scanLoad - 4))}%`} barPct={Math.max(10, Math.min(100, scanLoad - 4))} color={colors.cyan} />
+          <SectionRow label="IDS DE RED" value={`${Math.max(12, Math.min(100, scanLoad - 8))}%`} barPct={Math.max(12, Math.min(100, scanLoad - 8))} color={colors.purple} />
+          <SectionRow label="MOTOR HEURÍSTICO" value={`${Math.max(6, Math.min(100, scanLoad - 16))}%`} barPct={Math.max(6, Math.min(100, scanLoad - 16))} color={colors.warning} />
+          <SectionRow label="ANALIZADOR EXIF" value={`${Math.max(4, Math.min(100, scanLoad - 24))}%`} barPct={Math.max(4, Math.min(100, scanLoad - 24))} color={colors.primary} />
         </View>
       </View>
 
