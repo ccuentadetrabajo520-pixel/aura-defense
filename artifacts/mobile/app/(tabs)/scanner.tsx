@@ -41,7 +41,7 @@ const THREAT_DATABASE = [
 ];
 
 const AuraNativeModule = NativeModules.AuraNativeModule as {
-  scanInstalledApplications?: () => Promise<Array<{ packageName: string; appName: string; isSystemApp: boolean }>>;
+  getInstalledApps?: () => Promise<Array<{ packageName: string; appName: string; isSystemApp: boolean }>>;
 };
 
 const matchesThreat = (packageName: string, appName: string) => {
@@ -117,7 +117,7 @@ export default function ScannerScreen() {
     setThreats([]);
 
     try {
-      const installedPackages = await AuraNativeModule.scanInstalledApplications?.() ?? [];
+      const installedPackages = await AuraNativeModule.getInstalledApps?.() ?? [];
       const nextThreats: Threat[] = installedPackages
         .filter((app) => !app.isSystemApp && matchesThreat(app.packageName, app.appName))
         .map((app, index) => ({

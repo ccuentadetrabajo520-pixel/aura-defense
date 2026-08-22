@@ -7,12 +7,29 @@ interface Peer { id: string; name: string; status: string; }
 const AuraDefenseModule = NativeModules.AuraDefenseModule as {
   getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
 };
+const AuraNativeModule = NativeModules.AuraNativeModule as {
+  sendUdpPacket?: (message: string) => Promise<boolean>;
+};
 
 export default function P2PConsoleScreen() {
   const colors = useColors();
   const [message, setMessage] = useState('');
   const [peers, setPeers] = useState<Peer[]>([]);
   const [networkInfo, setNetworkInfo] = useState<{ ssid: string; ipAddress: string; macAddress: string } | null>(null);
+  const [transmitStatus, setTransmitStatus] = useState<string | null>(null);
+
+  const transmit = async () => {
+    if (!message.trim()) {
+      setTransmitStatus('Escribe un mensaje antes de transmitir.');
+      return;
+    }
+    try {
+      await AuraNativeModule.sendUdpPacket?.(message.trim());
+      setTransmitStatus('Paquete UDP transmitido al canal local.');
+    } catch {
+      setTransmitStatus('Android bloquea los hotspots locales sin acceso root; no se pudo transmitir el paquete UDP.');
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -59,9 +76,10 @@ export default function P2PConsoleScreen() {
       <View style={[styles.panel, { borderColor: colors.border, backgroundColor: colors.card }]}> 
         <Text style={[styles.panelTitle, { color: colors.foreground }]}>ENVIAR MENSAJE</Text>
         <TextInput value={message} onChangeText={setMessage} placeholder="Mensaje cifrado" placeholderTextColor={colors.mutedForeground} style={[styles.input, { color: colors.foreground, borderColor: colors.border }]} />
-        <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]}>
+        <TouchableOpacity style={[styles.button, { backgroundColor: colors.primary }]} onPress={transmit}>
           <Text style={styles.buttonText}>Transmitir vía canal seguro</Text>
         </TouchableOpacity>
+        {transmitStatus ? <Text style={[styles.peerStatus, { color: colors.warning }]}>{transmitStatus}</Text> : null}
       </View>
     </ScrollView>
   );

@@ -13,6 +13,7 @@ import android.os.BatteryManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.net.Uri;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Promise;
@@ -126,6 +127,11 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getWifiSecurity(final Promise promise) {
+    getNetworkThreatProfile(promise);
+  }
+
+  @ReactMethod
   public void scanInstalledApplications(final Promise promise) {
     try {
       final PackageManager packageManager = getReactApplicationContext().getPackageManager();
@@ -144,6 +150,39 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
       promise.resolve(payload);
     } catch (Exception e) {
       promise.reject("APP_SCAN_ERROR", e);
+    }
+  }
+
+  @ReactMethod
+  public void getInstalledApps(final Promise promise) {
+    scanInstalledApplications(promise);
+  }
+
+  @ReactMethod
+  public void sendUdpPacket(final String message, final Promise promise) {
+    try {
+      final byte[] data = (message == null ? "" : message).getBytes(StandardCharsets.UTF_8);
+      final InetAddress group = InetAddress.getByName(MULTICAST_HOST);
+      try (DatagramSocket socket = new DatagramSocket()) {
+        socket.setBroadcast(true);
+        socket.send(new DatagramPacket(data, data.length, group, MULTICAST_PORT));
+      }
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject("UDP_SEND_ERROR", "Android blocked local hotspot transmission without root access.", e);
+    }
+  }
+
+  @ReactMethod
+  public void openAppSettings(final String packageName, final Promise promise) {
+    try {
+      final Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+      intent.setData(Uri.parse("package:" + packageName));
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      getReactApplicationContext().startActivity(intent);
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject("APP_SETTINGS_ERROR", e);
     }
   }
 

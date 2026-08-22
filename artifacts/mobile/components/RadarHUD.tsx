@@ -37,6 +37,25 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
   const armColor = radarStatus === 'Red' ? colors.threat : radarStatus === 'Blue' ? colors.cyan : colors.primary;
 
   useEffect(() => {
+    let mounted = true;
+    module?.getWifiSecurity?.().then((payload: any) => {
+      if (!mounted) return;
+      const encryption = String(payload?.encryption ?? '').toUpperCase();
+      if (payload?.arpSpoofing || encryption.includes('OPEN') || encryption.includes('WEP')) {
+        setRadarStatus('Red');
+      } else if (encryption.includes('WPA')) {
+        setRadarStatus('Green');
+      } else {
+        setRadarStatus('Blue');
+      }
+    }).catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
     const listener = eventEmitter?.addListener('AuraNetworkStatus', (payload: any) => {
       const encryption = String(payload?.encryption ?? '').toUpperCase();
       const arpSpoofing = Boolean(payload?.arpSpoofing);
@@ -63,8 +82,10 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
 
   useEffect(() => {
     const dur = isScanning ? 1100 : 3200;
-    const nextRotation = rotationRef.current + 360;
+    const startRotation = rotationRef.current;
+    const nextRotation = startRotation + 360;
     rotationRef.current = nextRotation;
+    rotation.value = startRotation;
     rotation.value = withRepeat(
       withTiming(nextRotation, { duration: dur, easing: Easing.linear }),
       -1,
@@ -200,10 +221,10 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: colors.threat,
+                backgroundColor: armColor,
                 left: bx,
                 top: by,
-                shadowColor: colors.threat,
+                shadowColor: armColor,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 1,
                 shadowRadius: 8,
