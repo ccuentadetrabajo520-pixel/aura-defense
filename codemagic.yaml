@@ -1,4 +1,4 @@
-    workflows:
+workflows:
   aura-android-release:
     name: Aura Defense Android Release
     max_build_duration: 60
