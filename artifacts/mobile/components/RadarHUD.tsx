@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { NativeEventEmitter, NativeModules, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -23,28 +23,83 @@ const BLIP_POSITIONS = [
   { angle: 172, r: 0.32 },
 ];
 
+const module = NativeModules.AuraNativeModule;
+const eventEmitter = module ? new NativeEventEmitter(module) : null;
+
 export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: RadarHUDProps) {
   const colors = useColors();
   const rotation = useSharedValue(0);
+  const rotationRef = useRef(0);
+  const animationStarted = useRef(false);
   const pulseVal = useSharedValue(0.5);
 
   const half = size / 2;
-  const armColor = isScanning ? colors.cyan : colors.primary;
+  const [radarStatus, setRadarStatus] = React.useState<'Green' | 'Red' | 'Blue'>('Green');
+  const armColor = radarStatus === 'Red' ? colors.threat : radarStatus === 'Blue' ? colors.cyan : colors.primary;
 
   useEffect(() => {
+    let mounted = true;
+    module?.getWifiSecurity?.().then((payload: any) => {
+      if (!mounted) return;
+      const encryption = String(payload?.encryption ?? '').toUpperCase();
+      if (payload?.arpSpoofing || encryption.includes('OPEN') || encryption.includes('WEP')) {
+        setRadarStatus('Red');
+      } else if (encryption.includes('WPA')) {
+        setRadarStatus('Green');
+      } else {
+        setRadarStatus('Blue');
+      }
+    }).catch(() => undefined);
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const listener = eventEmitter?.addListener('AuraNetworkStatus', (payload: any) => {
+      const encryption = String(payload?.encryption ?? '').toUpperCase();
+      const arpSpoofing = Boolean(payload?.arpSpoofing);
+      const isWpa = encryption.includes('WPA');
+      const isOpen = encryption.includes('OPEN') || encryption.includes('WEP');
+      if (arpSpoofing || isOpen) {
+        setRadarStatus('Red');
+      } else if (isWpa || payload?.ssid) {
+        setRadarStatus('Green');
+      }
+    });
+
+    const helloListener = eventEmitter?.addListener('AuraHelloPacket', (payload: any) => {
+      if (payload?.message === 'HELLO_AURA') {
+        setRadarStatus('Blue');
+      }
+    });
+
+    return () => {
+      listener?.remove();
+      helloListener?.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (animationStarted.current) return;
+    animationStarted.current = true;
     const dur = isScanning ? 1100 : 3200;
+    const startRotation = rotationRef.current;
+    const nextRotation = startRotation + 360;
+    rotationRef.current = nextRotation;
+    rotation.value = startRotation;
     rotation.value = withRepeat(
-      withTiming(360, { duration: dur, easing: Easing.linear }),
+      withTiming(nextRotation, { duration: dur, easing: Easing.linear }),
       -1,
-      false
+      false,
     );
-  }, [isScanning]);
+  }, [isScanning, rotation]);
 
   useEffect(() => {
     pulseVal.value = withRepeat(withTiming(1, { duration: 900 }), -1, true);
   }, []);
 
-  // Three sweep arms — trail effect
   const sweepStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],
   }));
@@ -169,10 +224,10 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: colors.threat,
+                backgroundColor: radarStatus === 'Red' ? colors.threat : radarStatus === 'Blue' ? colors.cyan : colors.primary,
                 left: bx,
                 top: by,
-                shadowColor: colors.threat,
+                shadowColor: armColor,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 1,
                 shadowRadius: 8,

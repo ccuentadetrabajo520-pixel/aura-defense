@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  NativeModules,
   Platform,
   ScrollView,
   StyleSheet,
@@ -21,6 +22,33 @@ import { useSecurity } from '@/contexts/SecurityContext';
 import { useColors } from '@/hooks/useColors';
 import LogTerminal from '@/components/LogTerminal';
 
+interface Threat {
+  id: string;
+  packageName: string;
+  appName: string;
+  severity: 'critical' | 'high' | 'medium';
+  reason: string;
+}
+
+const THREAT_DATABASE = [
+  'com.android.spyware',
+  'com.malware.keylogger',
+  'com.fakebanker',
+  'com.adware.traffic',
+  'com.blackhat.rat',
+  'com.spytech.monitor',
+  'com.rogue.remoteaccess',
+];
+
+const AuraNativeModule = NativeModules.AuraNativeModule as {
+  getInstalledApps?: () => Promise<Array<{ packageName: string; appName: string; isSystemApp: boolean }>>;
+};
+
+const matchesThreat = (packageName: string, appName: string) => {
+  const haystack = `${packageName} ${appName}`.toLowerCase();
+  return THREAT_DATABASE.some((signature) => haystack.includes(signature.toLowerCase()));
+};
+
 function NetStatusRow({ label, value, ok }: { label: string; value: string; ok: boolean }) {
   const colors = useColors();
   return (
@@ -37,11 +65,13 @@ function NetStatusRow({ label, value, ok }: { label: string; value: string; ok: 
 export default function ScannerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { scanState, logs, startScan, networkStatus, rootDetected, debugDetected, threatCount } =
-    useSecurity();
+  const { logs, networkStatus, rootDetected, debugDetected, setScanResults } = useSecurity();
+  const [isScanning, setIsScanning] = useState(false);
+  const [isComplete, setIsComplete] = useState(false);
+  const [threats, setThreats] = useState<Threat[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
 
-  const isScanning = scanState === 'scanning';
-  const isComplete = scanState === 'complete';
+  const threatCount = threats.length;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
 
@@ -81,10 +111,52 @@ export default function ScannerScreen() {
     shadowOpacity: glowOpacity.value,
   }));
 
+  const startRealScan = async () => {
+    if (isScanning) return;
+    setIsScanning(true);
+    setIsComplete(false);
+    setThreats([]);
+    setScanError(null);
+
+    try {
+      const installedPackages = await AuraNativeModule.getInstalledApps?.() ?? [];
+      const nextThreats: Threat[] = installedPackages
+        .filter((app) => !app.isSystemApp && matchesThreat(app.packageName, app.appName))
+        .map((app, index) => ({
+          id: `${app.packageName}-${index}`,
+          packageName: app.packageName,
+          appName: app.appName || app.packageName,
+          severity: 'high',
+          reason: 'Known adverse signature match in offline threat database.',
+        }));
+
+      setThreats(nextThreats);
+      setScanResults(nextThreats.map((threat) => ({
+        id: threat.id,
+        name: threat.appName,
+        packageName: threat.packageName,
+        severity: threat.severity,
+        threatType: 'Offline signature match',
+        description: threat.reason,
+        permissions: [],
+        riskScore: 82,
+        purged: false,
+      })));
+      setIsComplete(true);
+    } catch {
+      setThreats([]);
+      setScanResults([]);
+      setScanError('No se pudo consultar la lista de aplicaciones. Verifica los permisos de uso y vuelve a intentarlo.');
+      setIsComplete(true);
+    } finally {
+      setIsScanning(false);
+    }
+  };
+
   const handleScan = () => {
     if (isScanning) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    startScan();
+    startRealScan();
   };
 
   const scanBtnColor = isScanning ? colors.warning : isComplete ? colors.cyan : colors.primary;
@@ -175,21 +247,50 @@ export default function ScannerScreen() {
           )}
         </View>
 
+        {/* Resultados reales del escaneo */}
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}> 
+          <View style={styles.panelHeader}>
+            <MaterialCommunityIcons name="shield-alert" size={14} color={colors.threat} />
+            <Text style={[styles.panelTitle, { color: colors.threat }]}>RESULTADOS DEL ESCANEO</Text>
+          </View>
+          {!isScanning && !isComplete ? (
+            <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}> 
+              Presiona la acción para iniciar un análisis real del sistema.
+            </Text>
+          ) : threats.length > 0 ? (
+            <View style={styles.threatList}>
+              {threats.map((threat) => (
+                <View key={threat.id} style={[styles.threatRow, { borderColor: colors.border }]}> 
+                  <Text style={[styles.threatTitle, { color: colors.foreground }]}>{threat.appName}</Text>
+                  <Text style={[styles.threatMeta, { color: colors.mutedForeground }]}>{threat.packageName}</Text>
+                  <Text style={[styles.threatMeta, { color: colors.threat }]}>{threat.severity.toUpperCase()} · {threat.reason}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text
+              style={[styles.noPanelText, { color: scanError ? colors.warning : colors.mutedForeground }]}
+            >
+              {scanError ?? 'No threats found.'}
+            </Text>
+          )}
+        </View>
+
         {/* Panel de integridad del sistema */}
-        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={[styles.panel, { backgroundColor: colors.card, borderColor: colors.border }]}> 
           <View style={styles.panelHeader}>
             <MaterialCommunityIcons name="shield-lock" size={14} color={colors.purple} />
             <Text style={[styles.panelTitle, { color: colors.purple }]}>NÚCLEO DE INTEGRIDAD DEL SISTEMA</Text>
           </View>
-          {scanState !== 'idle' ? (
+          {isScanning || isComplete ? (
             <>
-              <NetStatusRow label="BINARIOS ROOT"    value={rootDetected  ? 'COMPROMETIDO' : 'LIMPIO'}  ok={!rootDetected}  />
-              <NetStatusRow label="CLAVES ROM"        value="VERSIÓN OFICIAL"                             ok={true}           />
-              <NetStatusRow label="MODO DEBUG"        value={debugDetected ? 'ACTIVO — RIESGO' : 'INACTIVO'} ok={!debugDetected} />
-              <NetStatusRow label="ANTI-MANIPULACIÓN" value="ACTIVO"                                      ok={true}           />
+              <NetStatusRow label="BINARIOS ROOT" value={rootDetected ? 'COMPROMETIDO' : 'LIMPIO'} ok={!rootDetected} />
+              <NetStatusRow label="CLAVES ROM" value="VERSIÓN OFICIAL" ok={true} />
+              <NetStatusRow label="MODO DEBUG" value={debugDetected ? 'ACTIVO — RIESGO' : 'INACTIVO'} ok={!debugDetected} />
+              <NetStatusRow label="ANTI-MANIPULACIÓN" value="ACTIVO" ok={true} />
             </>
           ) : (
-            <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}>
+            <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}> 
               Ejecuta un escaneo para auditar la integridad del sistema
             </Text>
           )}
@@ -312,6 +413,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter_400Regular',
     fontStyle: 'italic',
+  },
+  threatList: {
+    gap: 8,
+    padding: 12,
+  },
+  threatRow: {
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 10,
+    gap: 4,
+  },
+  threatTitle: {
+    fontSize: 12,
+    fontFamily: 'Inter_700Bold',
+  },
+  threatMeta: {
+    fontSize: 10,
+    lineHeight: 14,
   },
   termHeader: {
     flexDirection: 'row',

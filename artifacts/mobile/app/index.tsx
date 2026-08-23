@@ -1,26 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Redirect } from 'expo-router';
 
 export default function EntryScreen() {
   const [loading, setLoading] = useState(true);
+  const [isOnboardingCompleted, setIsOnboardingCompleted] = useState(false);
   const [hasProfile, setHasProfile] = useState(false);
 
   useEffect(() => {
     let active = true;
-    AsyncStorage.getItem('aura-user-name')
-      .then((value) => {
+
+    const hydrate = async () => {
+      try {
+        const [storedName, onboardingStatus] = await Promise.all([
+          SecureStore.getItemAsync('aura-user-name'),
+          SecureStore.getItemAsync('aura-onboarding-completed'),
+        ]);
+
         if (!active) return;
-        setHasProfile(Boolean(value && value.trim()));
-        setLoading(false);
-      })
-      .catch(() => {
+
+        const completed = onboardingStatus === 'true';
+        setHasProfile(Boolean(storedName && storedName.trim()));
+        setIsOnboardingCompleted(completed);
+      } catch {
         if (active) {
           setHasProfile(false);
-          setLoading(false);
+          setIsOnboardingCompleted(false);
         }
-      });
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    hydrate();
+
     return () => {
       active = false;
     };
@@ -35,7 +49,11 @@ export default function EntryScreen() {
     );
   }
 
-  return hasProfile ? <Redirect href="/(tabs)" /> : <Redirect href="/onboarding" />;
+  if (!isOnboardingCompleted || !hasProfile) {
+    return <Redirect href="/onboarding" />;
+  }
+
+  return <Redirect href="/(tabs)" />;
 }
 
 const styles = StyleSheet.create({

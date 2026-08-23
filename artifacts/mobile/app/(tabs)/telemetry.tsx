@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  NativeModules,
   Platform,
   ScrollView,
   StyleSheet,
@@ -11,6 +12,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSecurity } from '@/contexts/SecurityContext';
 import { useColors } from '@/hooks/useColors';
 import TelemetryGraph from '@/components/TelemetryGraph';
+
+const AuraNativeModule = NativeModules.AuraNativeModule as {
+  getSystemStats?: () => Promise<{
+    cpuCoreCount: number;
+    availableRamMb: number;
+    totalRamMb: number;
+    usedRamMb: number;
+    batteryPercent: number;
+    installedPackageCount: number;
+  }>;
+};
 
 function MetricCard({
   icon,
@@ -65,8 +77,47 @@ export default function TelemetryScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { scanState, threats, threatCount } = useSecurity();
+  const [batteryPercent, setBatteryPercent] = useState(0);
+  const [ramAvailableMb, setRamAvailableMb] = useState(0);
+  const [cpuCoreCount, setCpuCoreCount] = useState(0);
+  const [installedPackageCount, setInstalledPackageCount] = useState(0);
+  const [totalRamMb, setTotalRamMb] = useState(0);
+  const [usedRamMb, setUsedRamMb] = useState(0);
 
-  // Las barras de hilos siempre animan — isActive solo cambia la etiqueta del indicador
+  useEffect(() => {
+    let mounted = true;
+    const refresh = async () => {
+      try {
+        const stats = await AuraNativeModule.getSystemStats?.();
+        if (!mounted || !stats) return;
+        setCpuCoreCount(Number.isFinite(stats.cpuCoreCount) ? stats.cpuCoreCount : 0);
+        setBatteryPercent(Number.isFinite(stats.batteryPercent) ? stats.batteryPercent : 0);
+        setRamAvailableMb(Number.isFinite(stats.availableRamMb) ? stats.availableRamMb : 0);
+        setTotalRamMb(Number.isFinite(stats.totalRamMb) ? stats.totalRamMb : 0);
+        setUsedRamMb(Number.isFinite(stats.usedRamMb) ? stats.usedRamMb : 0);
+        setInstalledPackageCount(Number.isFinite(stats.installedPackageCount) ? stats.installedPackageCount : 0);
+      } catch {
+        if (mounted) {
+          setCpuCoreCount(0);
+          setBatteryPercent(0);
+          setRamAvailableMb(0);
+          setTotalRamMb(0);
+          setUsedRamMb(0);
+          setInstalledPackageCount(0);
+        }
+      }
+    };
+    refresh();
+    const interval = setInterval(refresh, 2000);
+
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
+
+  const ramAvailablePercent = totalRamMb > 0 ? Math.min(100, Math.round((ramAvailableMb / totalRamMb) * 100)) : 0;
+
   const isActive = scanState === 'scanning' || scanState === 'complete';
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
   const bottomPad = Platform.OS === 'web' ? 34 : insets.bottom;
@@ -100,15 +151,15 @@ export default function TelemetryScreen() {
         <MetricCard
           icon="cpu-64-bit"
           label="NÚCLEOS CPU"
-          value="8"
-          sub="ARM Cortex-A78"
+          value={`${cpuCoreCount}`}
+          sub="Núcleos disponibles"
           accent={colors.cyan}
         />
         <MetricCard
           icon="memory"
-          label="MEM ANÁLISIS"
-          value="147 MB"
-          sub="Heap asignado"
+          label="RAM EN USO"
+          value={`${Math.max(0, Math.round(usedRamMb))} MB`}
+          sub="Uso real del dispositivo"
           accent={colors.purple}
         />
         <MetricCard
@@ -137,11 +188,10 @@ export default function TelemetryScreen() {
           <Text style={[styles.panelTitle, { color: colors.cyan }]}>CARGA DEL MOTOR DE ANÁLISIS</Text>
         </View>
         <View style={styles.panelBody}>
-          <SectionRow label="ESCÁNER DE PAQUETES" value="38%" barPct={38} color={colors.primary} />
-          <SectionRow label="COMPARADOR DE FIRMAS" value="24%" barPct={24} color={colors.cyan} />
-          <SectionRow label="IDS DE RED" value="17%" barPct={17} color={colors.purple} />
-          <SectionRow label="MOTOR HEURÍSTICO" value="12%" barPct={12} color={colors.warning} />
-          <SectionRow label="ANALIZADOR EXIF" value="9%" barPct={9} color={colors.primary} />
+          <SectionRow label="RAM DISPONIBLE" value={`${Math.round(ramAvailableMb)} MB`} barPct={ramAvailablePercent} color={colors.primary} />
+          <SectionRow label="BATERÍA" value={`${batteryPercent}%`} barPct={batteryPercent} color={colors.cyan} />
+          <SectionRow label="NÚCLEOS CPU" value={`${cpuCoreCount}`} barPct={Math.min(100, cpuCoreCount * 12.5)} color={colors.purple} />
+          <SectionRow label="AMENAZAS ACTIVAS" value={`${threatCount}`} barPct={Math.min(100, threatCount * 20)} color={colors.warning} />
         </View>
       </View>
 
@@ -186,10 +236,9 @@ export default function TelemetryScreen() {
           <Text style={[styles.panelTitle, { color: colors.purple }]}>DIAGNÓSTICO DEL SISTEMA</Text>
         </View>
         <View style={styles.panelBody}>
-          <SectionRow label="MOTOR DE ESCANEO" value="v2.1.0" barPct={100} color={colors.primary} />
-          <SectionRow label="ENTRADAS BASE DE FIRMAS" value="3.847" barPct={80} color={colors.cyan} />
-          <SectionRow label="PAQUETES ESCANEADOS" value="10" barPct={60} color={colors.purple} />
-          <SectionRow label="PUNTUACIÓN INTEGRIDAD" value="98/100" barPct={98} color={colors.primary} />
+          <SectionRow label="MÓDULO NATIVO" value={AuraNativeModule.getSystemStats ? 'DISPONIBLE' : 'NO DISPONIBLE'} barPct={AuraNativeModule.getSystemStats ? 100 : 0} color={colors.primary} />
+          <SectionRow label="PAQUETES INSTALADOS" value={`${installedPackageCount}`} barPct={Math.min(100, installedPackageCount)} color={colors.cyan} />
+          <SectionRow label="INTEGRIDAD" value="NO DISPONIBLE" barPct={0} color={colors.mutedForeground} />
         </View>
       </View>
     </ScrollView>

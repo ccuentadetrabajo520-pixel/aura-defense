@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { NativeEventEmitter, NativeModules, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -8,51 +8,30 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useColors } from '@/hooks/useColors';
 
+const telemetryEmitter = NativeModules.AuraNativeModule ? new NativeEventEmitter(NativeModules.AuraNativeModule) : null;
+
 interface BarConfig {
   label: string;
   color: string;
-  /** ms per animation step */
-  speed: number;
-  initial: number;
   min: number;
   max: number;
 }
 
 interface AnimatedBarProps {
   config: BarConfig;
+  value: number;
 }
 
-// Each bar is its own component — never call useAnimatedStyle inside a .map()
-function AnimatedBar({ config }: AnimatedBarProps) {
-  const heightPct = useSharedValue(config.initial);
+function AnimatedBar({ config, value }: AnimatedBarProps) {
+  const heightPct = useSharedValue(Math.min(config.max, Math.max(config.min, value)));
 
   useEffect(() => {
-    // cancelled flag prevents the recursive chain from touching shared values
-    // after the component unmounts, eliminating the memory leak.
-    let cancelled = false;
-    let timerId: ReturnType<typeof setTimeout>;
-
-    const scheduleNext = () => {
-      if (cancelled) return;
-      const range = config.max - config.min;
-      const target = config.min + Math.random() * range;
-      const duration = config.speed * (0.55 + Math.random() * 0.9);
-      heightPct.value = withTiming(target, {
-        duration,
-        easing: Easing.inOut(Easing.quad),
-      });
-      timerId = setTimeout(scheduleNext, duration);
-    };
-
-    // Staggered start so bars don't all move in sync
-    timerId = setTimeout(scheduleNext, Math.random() * config.speed);
-
-    return () => {
-      cancelled = true;
-      clearTimeout(timerId);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const clamped = Math.min(config.max, Math.max(config.min, value));
+    heightPct.value = withTiming(clamped, {
+      duration: 380,
+      easing: Easing.inOut(Easing.quad),
+    });
+  }, [config.max, config.min, heightPct, value]);
 
   const barStyle = useAnimatedStyle(() => ({
     height: `${heightPct.value}%`,
@@ -80,17 +59,26 @@ interface TelemetryGraphProps {
 
 export default function TelemetryGraph({ isActive }: TelemetryGraphProps) {
   const colors = useColors();
+  const [cpuUsage, setCpuUsage] = useState<number[]>([18, 32, 28, 44, 52, 26, 38, 21]);
 
-  // Bars always animate — isActive only changes the status pill label
+  useEffect(() => {
+    const listener = telemetryEmitter?.addListener('AuraTelemetry', (payload: any) => {
+      const next = Array.isArray(payload?.cpuUsage) ? payload.cpuUsage.map((value: number) => Math.max(0, Math.min(100, Number(value) || 0))) : cpuUsage;
+      setCpuUsage(next);
+    });
+
+    return () => listener?.remove();
+  }, [cpuUsage]);
+
   const BARS: BarConfig[] = [
-    { label: 'T-0', color: colors.primary, speed: 320, initial: 45, min: 8,  max: 95  },
-    { label: 'T-1', color: colors.cyan,    speed: 210, initial: 72, min: 12, max: 100 },
-    { label: 'T-2', color: colors.purple,  speed: 390, initial: 30, min: 5,  max: 88  },
-    { label: 'T-3', color: colors.primary, speed: 260, initial: 58, min: 15, max: 92  },
-    { label: 'T-4', color: colors.warning, speed: 180, initial: 88, min: 20, max: 100 },
-    { label: 'T-5', color: colors.cyan,    speed: 340, initial: 22, min: 6,  max: 85  },
-    { label: 'T-6', color: colors.purple,  speed: 270, initial: 65, min: 10, max: 96  },
-    { label: 'T-7', color: colors.primary, speed: 230, initial: 40, min: 8,  max: 90  },
+    { label: 'T-0', color: colors.primary, min: 8, max: 100 },
+    { label: 'T-1', color: colors.cyan, min: 12, max: 100 },
+    { label: 'T-2', color: colors.purple, min: 5, max: 100 },
+    { label: 'T-3', color: colors.primary, min: 15, max: 100 },
+    { label: 'T-4', color: colors.warning, min: 20, max: 100 },
+    { label: 'T-5', color: colors.cyan, min: 6, max: 100 },
+    { label: 'T-6', color: colors.purple, min: 10, max: 100 },
+    { label: 'T-7', color: colors.primary, min: 8, max: 100 },
   ];
 
   return (
@@ -112,8 +100,8 @@ export default function TelemetryGraph({ isActive }: TelemetryGraphProps) {
       </View>
 
       <View style={styles.graphArea}>
-        {BARS.map((cfg) => (
-          <AnimatedBar key={cfg.label} config={cfg} />
+        {BARS.map((cfg, index) => (
+          <AnimatedBar key={cfg.label} config={cfg} value={cpuUsage[index] ?? cfg.min} />
         ))}
       </View>
 

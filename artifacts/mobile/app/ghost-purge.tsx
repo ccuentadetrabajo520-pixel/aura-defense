@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, NativeModules, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
 interface GhostApp {
@@ -24,8 +24,18 @@ export default function GhostPurgeScreen() {
     setSelected((prev) => (prev.includes(packageName) ? prev.filter((value) => value !== packageName) : [...prev, packageName]));
   };
 
-  const purge = () => {
-    Alert.alert('Purga profunda', `Se procesará la limpieza de ${selected.length || GHOST_APPS.length} aplicaciones y caché.`);
+  const purge = async () => {
+    const targets = selected.length > 0 ? selected : GHOST_APPS.map((app) => app.packageName);
+    const target = targets[0];
+    try {
+      await NativeModules.AuraNativeModule.openAppSettings(target);
+    } catch {
+      try {
+        await Linking.openURL(`package:${target}`);
+      } catch {
+        Alert.alert('Purga profunda', 'No se pudo abrir los ajustes de la aplicación. Desinstálala manualmente desde Ajustes de Android.');
+      }
+    }
   };
 
   return (
