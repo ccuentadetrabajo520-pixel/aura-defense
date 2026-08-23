@@ -4,10 +4,8 @@ import { useColors } from '@/hooks/useColors';
 
 interface Peer { id: string; name: string; status: string; }
 
-const AuraDefenseModule = NativeModules.AuraDefenseModule as {
-  getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
-};
 const AuraNativeModule = NativeModules.AuraNativeModule as {
+  getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
   sendUdpPacket?: (message: string) => Promise<boolean>;
 };
 
@@ -34,7 +32,7 @@ export default function P2PConsoleScreen() {
   useEffect(() => {
     let mounted = true;
     const load = async () => {
-      const info = await AuraDefenseModule.getLocalNetworkInfo?.();
+      const info = await AuraNativeModule.getLocalNetworkInfo?.();
       if (mounted && info) {
         setNetworkInfo(info);
         setPeers([

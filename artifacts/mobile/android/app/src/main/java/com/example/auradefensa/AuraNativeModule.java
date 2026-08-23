@@ -1,9 +1,12 @@
 package com.example.auradefensa;
 
 import android.app.ActivityManager;
+import android.app.AppOpsManager;
+import android.os.Build;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.net.VpnService;
 import android.net.wifi.WifiConfiguration;
@@ -100,6 +103,46 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getPermissionState(final String permissionName, final Promise promise) {
+    try {
+      final Context context = getReactApplicationContext();
+      if ("PACKAGE_USAGE_STATS".equals(permissionName)) {
+        final AppOpsManager appOps = (AppOpsManager) context.getSystemService(Context.APP_OPS_SERVICE);
+        final int mode = appOps != null ? appOps.checkOpNoThrow(
+          AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), context.getPackageName()) : AppOpsManager.MODE_DEFAULT;
+        promise.resolve(mode == AppOpsManager.MODE_ALLOWED);
+        return;
+      }
+      if ("REQUEST_INSTALL_PACKAGES".equals(permissionName) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        promise.resolve(context.getPackageManager().canRequestPackageInstalls());
+        return;
+      }
+      promise.resolve(context.checkSelfPermission("android.permission." + permissionName) == PackageManager.PERMISSION_GRANTED);
+    } catch (Exception e) {
+      promise.reject("PERMISSION_STATE_ERROR", e);
+    }
+  }
+
+  @ReactMethod
+  public void openPermissionSettings(final String permissionName, final Promise promise) {
+    try {
+      final Intent intent;
+      if ("PACKAGE_USAGE_STATS".equals(permissionName)) {
+        intent = new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS);
+      } else if ("REQUEST_INSTALL_PACKAGES".equals(permissionName) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        intent = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getReactApplicationContext().getPackageName()));
+      } else {
+        intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + getReactApplicationContext().getPackageName()));
+      }
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      getReactApplicationContext().startActivity(intent);
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject("PERMISSION_SETTINGS_ERROR", e);
+    }
+  }
+
+  @ReactMethod
   public void getCurrentWifiInfo(final Promise promise) {
     try {
       final WifiManager wifiManager = (WifiManager) getReactApplicationContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
@@ -118,6 +161,7 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
       final WritableMap response = Arguments.createMap();
       response.putString("ssid", ssid);
       response.putString("bssid", wifiInfo != null && wifiInfo.getBSSID() != null ? wifiInfo.getBSSID() : "unknown");
+      response.putString("macAddress", wifiInfo != null && wifiInfo.getBSSID() != null ? wifiInfo.getBSSID() : "unknown");
       response.putString("ipAddress", formatIpAddress(wifiInfo != null ? wifiInfo.getIpAddress() : 0));
       response.putString("encryption", detectCurrentWifiEncryption(wifiManager, ssid));
       promise.resolve(response);
@@ -127,8 +171,37 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getLocalNetworkInfo(final Promise promise) {
+    getCurrentWifiInfo(promise);
+  }
+
+  @ReactMethod
   public void getWifiSecurity(final Promise promise) {
     getNetworkThreatProfile(promise);
+  }
+
+  @ReactMethod
+  public void getSystemStats(final Promise promise) {
+    try {
+      final Context context = getReactApplicationContext();
+      final ActivityManager activityManager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+      final ActivityManager.MemoryInfo memoryInfo = new ActivityManager.MemoryInfo();
+      if (activityManager != null) {
+        activityManager.getMemoryInfo(memoryInfo);
+      }
+      final BatteryManager batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
+      final int batteryPct = batteryManager != null ? batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) : 0;
+      final WritableMap stats = Arguments.createMap();
+      stats.putInt("cpuCoreCount", Runtime.getRuntime().availableProcessors());
+      stats.putDouble("availableRamMb", Math.max(0L, memoryInfo.availMem / (1024 * 1024)));
+      stats.putDouble("totalRamMb", Math.max(0L, memoryInfo.totalMem / (1024 * 1024)));
+      stats.putDouble("usedRamMb", Math.max(0L, (memoryInfo.totalMem - memoryInfo.availMem) / (1024 * 1024)));
+      stats.putInt("batteryPercent", Math.max(0, batteryPct));
+      stats.putInt("installedPackageCount", context.getPackageManager().getInstalledApplications(0).size());
+      promise.resolve(stats);
+    } catch (Exception e) {
+      promise.reject("SYSTEM_STATS_ERROR", e);
+    }
   }
 
   @ReactMethod
@@ -159,6 +232,33 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
+  public void getInstalledPackages(final Promise promise) {
+    try {
+      final PackageManager packageManager = getReactApplicationContext().getPackageManager();
+      final WritableArray payload = Arguments.createArray();
+      for (ApplicationInfo applicationInfo : packageManager.getInstalledApplications(PackageManager.GET_META_DATA)) {
+        final WritableMap appInfo = Arguments.createMap();
+        appInfo.putString("packageName", applicationInfo.packageName);
+        appInfo.putString("name", packageManager.getApplicationLabel(applicationInfo).toString());
+        appInfo.putString("version", "unknown");
+        appInfo.putBoolean("isSystem", (applicationInfo.flags & ApplicationInfo.FLAG_SYSTEM) != 0);
+        final PackageInfo packageInfo = packageManager.getPackageInfo(applicationInfo.packageName, PackageManager.GET_PERMISSIONS);
+        final WritableArray permissions = Arguments.createArray();
+        if (packageInfo.requestedPermissions != null) {
+          for (String permission : packageInfo.requestedPermissions) {
+            permissions.pushString(permission.substring(permission.lastIndexOf('.') + 1));
+          }
+        }
+        appInfo.putArray("permissions", permissions);
+        payload.pushMap(appInfo);
+      }
+      promise.resolve(payload);
+    } catch (Exception e) {
+      promise.reject("PACKAGE_SCAN_ERROR", e);
+    }
+  }
+
+  @ReactMethod
   public void sendUdpPacket(final String message, final Promise promise) {
     try {
       final byte[] data = (message == null ? "" : message).getBytes(StandardCharsets.UTF_8);
@@ -183,6 +283,18 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
       promise.resolve(true);
     } catch (Exception e) {
       promise.reject("APP_SETTINGS_ERROR", e);
+    }
+  }
+
+  @ReactMethod
+  public void uninstallPackage(final String packageName, final Promise promise) {
+    try {
+      final Intent intent = new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + packageName));
+      intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+      getReactApplicationContext().startActivity(intent);
+      promise.resolve(true);
+    } catch (Exception e) {
+      promise.reject("UNINSTALL_FLOW_ERROR", e);
     }
   }
 
@@ -379,35 +491,15 @@ public class AuraNativeModule extends ReactContextBaseJavaModule {
       }
       final BatteryManager batteryManager = (BatteryManager) context.getSystemService(Context.BATTERY_SERVICE);
       final int batteryPct = batteryManager != null ? batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) : 0;
-      final int[] cpuUsage = getCpuCoreUsage();
       final WritableMap event = Arguments.createMap();
+      event.putInt("cpuCoreCount", Runtime.getRuntime().availableProcessors());
       event.putDouble("batteryPercent", batteryPct > 0 ? batteryPct : 0.0);
       event.putDouble("availableRamMb", memoryInfo != null ? Math.max(0L, memoryInfo.availMem / (1024 * 1024)) : 0.0);
       event.putDouble("totalRamMb", memoryInfo != null ? Math.max(0L, memoryInfo.totalMem / (1024 * 1024)) : 0.0);
-      event.putArray("cpuUsage", toWritableArrayFromInts(cpuUsage));
       event.putBoolean("backgroundScanActive", true);
       getReactApplicationContext().getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class).emit(EVENT_TELEMETRY, event);
     } catch (Exception ignored) {
     }
-  }
-
-  private WritableArray toWritableArrayFromInts(int[] values) {
-    final WritableArray array = Arguments.createArray();
-    if (values == null) {
-      return array;
-    }
-    for (int value : values) {
-      array.pushInt(value);
-    }
-    return array;
-  }
-
-  private int[] getCpuCoreUsage() {
-    final int[] usage = new int[8];
-    for (int i = 0; i < usage.length; i++) {
-      usage[i] = 10 + ((i * 13) % 75);
-    }
-    return usage;
   }
 
   private String detectCurrentWifiEncryption(WifiManager wifiManager, String ssid) {

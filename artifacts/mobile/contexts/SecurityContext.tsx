@@ -43,6 +43,7 @@ interface SecurityContextValue {
   debugDetected: boolean;
   toggleFirewall: () => void;
   startScan: () => void;
+  setScanResults: (results: ThreatItem[]) => void;
   purgeThreat: (id: string) => void;
   purgeAll: () => void;
   clearLogs: () => void;
@@ -52,7 +53,7 @@ interface SecurityContextValue {
 
 const SecurityContext = createContext<SecurityContextValue | null>(null);
 
-const AuraDefenseModule = NativeModules.AuraDefenseModule as {
+const AuraNativeModule = NativeModules.AuraNativeModule as {
   getInstalledPackages?: () => Promise<Array<{
     packageName: string;
     name: string;
@@ -63,9 +64,6 @@ const AuraDefenseModule = NativeModules.AuraDefenseModule as {
   getLocalNetworkInfo?: () => Promise<{ ssid: string; ipAddress: string; macAddress: string }>;
   killPackage?: (packageName: string) => Promise<boolean>;
   uninstallPackage?: (packageName: string) => Promise<boolean>;
-};
-
-const AuraNativeModule = NativeModules.AuraNativeModule as {
   getNetworkThreatProfile?: () => Promise<{ ssid: string; encryption: string; arpSpoofing: boolean; wpsEnabled: boolean; openCameraEndpoints: string[] }>; 
   checkPwnedAccount?: (email: string) => Promise<string[]>;
   isAdultDomainBlocked?: (domain: string) => Promise<boolean>;
@@ -136,9 +134,15 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
 
     if (Platform.OS === 'android') {
       try {
-        await requestLocationPermission();
-        await requestSpecialPermission('PACKAGE_USAGE_STATS');
-        await requestSpecialPermission('REQUEST_INSTALL_PACKAGES');
+        if (!(await requestLocationPermission())) {
+          log('WARN', 'Permiso de ubicación denegado: la información Wi-Fi puede no estar disponible.');
+        }
+        if (!(await requestSpecialPermission('PACKAGE_USAGE_STATS'))) {
+          log('WARN', 'Acceso de uso no concedido: Android limita el análisis de actividad de paquetes.');
+        }
+        if (!(await requestSpecialPermission('REQUEST_INSTALL_PACKAGES'))) {
+          log('INFO', 'Permiso de instalación no concedido: la purga solo puede abrir Ajustes para desinstalación manual.');
+        }
         await requestSpecialPermission('FOREGROUND_SERVICE');
 
         const networkProfile = await AuraNativeModule.getNetworkThreatProfile?.();
@@ -168,7 +172,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     log('OK', 'Root binaries: CLEAN — No su vectors found in critical paths');
     log('OK', 'ROM signature: VERIFIED — Official release keys confirmed');
 
-    const networkInfo = Platform.OS === 'android' ? await AuraDefenseModule.getLocalNetworkInfo?.() : null;
+    const networkInfo = Platform.OS === 'android' ? await AuraNativeModule.getLocalNetworkInfo?.() : null;
     setNetworkStatus({
       ssid: networkInfo?.ssid ?? 'Unknown',
       gateway: networkInfo?.ipAddress ?? 'Unknown',
@@ -179,7 +183,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
     log('OK', `Network info: ${networkInfo?.ssid ?? 'unknown'} · ${networkInfo?.ipAddress ?? 'unknown'}`);
 
     log('AUDIT', '════════ PHASE 2: PACKAGE THREAT ANALYSIS ════════');
-    const packages = Platform.OS === 'android' ? await AuraDefenseModule.getInstalledPackages?.() : [];
+    const packages = Platform.OS === 'android' ? await AuraNativeModule.getInstalledPackages?.() : [];
     const found: ThreatItem[] = [];
     for (const app of packages ?? []) {
       const risk = riskForPermissions(app.permissions);
@@ -213,9 +217,9 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const purgeThreat = useCallback(async (id: string) => {
     const target = threats.find((t) => t.id === id);
     if (!target) return;
-    if (Platform.OS === 'android' && AuraDefenseModule.uninstallPackage) {
+    if (Platform.OS === 'android' && AuraNativeModule.uninstallPackage) {
       try {
-        await AuraDefenseModule.uninstallPackage(target.packageName);
+        await AuraNativeModule.uninstallPackage(target.packageName);
       } catch {
         Alert.alert('Purge unavailable', 'Unable to launch the Android uninstall flow for this app.');
       }
@@ -226,9 +230,9 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
   const purgeAll = useCallback(async () => {
     const active = threats.filter((t) => !t.purged);
     for (const threat of active) {
-      if (Platform.OS === 'android' && AuraDefenseModule.uninstallPackage) {
+      if (Platform.OS === 'android' && AuraNativeModule.uninstallPackage) {
         try {
-          await AuraDefenseModule.uninstallPackage(threat.packageName);
+          await AuraNativeModule.uninstallPackage(threat.packageName);
         } catch {
           // ignore and continue
         }
@@ -238,6 +242,11 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
   }, [threats]);
 
   const clearLogs = useCallback(() => setLogs([]), []);
+
+  const setScanResults = useCallback((results: ThreatItem[]) => {
+    setThreats(results);
+    setScanState('complete');
+  }, []);
 
   const active = threats.filter((t) => !t.purged);
 
@@ -253,6 +262,7 @@ export function SecurityProvider({ children }: { children: React.ReactNode }) {
         debugDetected,
         toggleFirewall,
         startScan,
+        setScanResults,
         purgeThreat,
         purgeAll,
         clearLogs,

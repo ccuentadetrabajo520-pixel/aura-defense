@@ -30,6 +30,7 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
   const colors = useColors();
   const rotation = useSharedValue(0);
   const rotationRef = useRef(0);
+  const animationStarted = useRef(false);
   const pulseVal = useSharedValue(0.5);
 
   const half = size / 2;
@@ -81,6 +82,8 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
   }, []);
 
   useEffect(() => {
+    if (animationStarted.current) return;
+    animationStarted.current = true;
     const dur = isScanning ? 1100 : 3200;
     const startRotation = rotationRef.current;
     const nextRotation = startRotation + 360;
@@ -221,7 +224,7 @@ export default function RadarHUD({ isScanning, threatCount = 0, size = 270 }: Ra
                 width: 10,
                 height: 10,
                 borderRadius: 5,
-                backgroundColor: armColor,
+                backgroundColor: radarStatus === 'Red' ? colors.threat : radarStatus === 'Blue' ? colors.cyan : colors.primary,
                 left: bx,
                 top: by,
                 shadowColor: armColor,

@@ -65,10 +65,11 @@ function NetStatusRow({ label, value, ok }: { label: string; value: string; ok: 
 export default function ScannerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { logs, networkStatus, rootDetected, debugDetected } = useSecurity();
+  const { logs, networkStatus, rootDetected, debugDetected, setScanResults } = useSecurity();
   const [isScanning, setIsScanning] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [threats, setThreats] = useState<Threat[]>([]);
+  const [scanError, setScanError] = useState<string | null>(null);
 
   const threatCount = threats.length;
   const topPad = Platform.OS === 'web' ? 67 : insets.top;
@@ -115,6 +116,7 @@ export default function ScannerScreen() {
     setIsScanning(true);
     setIsComplete(false);
     setThreats([]);
+    setScanError(null);
 
     try {
       const installedPackages = await AuraNativeModule.getInstalledApps?.() ?? [];
@@ -129,9 +131,22 @@ export default function ScannerScreen() {
         }));
 
       setThreats(nextThreats);
+      setScanResults(nextThreats.map((threat) => ({
+        id: threat.id,
+        name: threat.appName,
+        packageName: threat.packageName,
+        severity: threat.severity,
+        threatType: 'Offline signature match',
+        description: threat.reason,
+        permissions: [],
+        riskScore: 82,
+        purged: false,
+      })));
       setIsComplete(true);
     } catch {
       setThreats([]);
+      setScanResults([]);
+      setScanError('No se pudo consultar la lista de aplicaciones. Verifica los permisos de uso y vuelve a intentarlo.');
       setIsComplete(true);
     } finally {
       setIsScanning(false);
@@ -253,8 +268,10 @@ export default function ScannerScreen() {
               ))}
             </View>
           ) : (
-            <Text style={[styles.noPanelText, { color: colors.mutedForeground }]}> 
-              No threats found.
+            <Text
+              style={[styles.noPanelText, { color: scanError ? colors.warning : colors.mutedForeground }]}
+            >
+              {scanError ?? 'No threats found.'}
             </Text>
           )}
         </View>
