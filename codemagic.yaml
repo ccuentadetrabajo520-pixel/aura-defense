@@ -12,7 +12,7 @@ workflows:
         script: |
           set -e
           npm install -g pnpm --force
-          rm -f package-lock.json yarn.lock .npmrc
+          rm -f package-lock.json yarn.lock
           rm -rf node_modules artifacts/mobile/node_modules
           pnpm install
           cd artifacts/mobile
