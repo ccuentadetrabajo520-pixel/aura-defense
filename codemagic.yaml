@@ -10,19 +10,11 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
-          # Forzar instalación global de pnpm (arregla el error EEXIST)
+          set -e
           npm install -g pnpm --force
-          # Limpia archivos de bloqueo antiguos
-          rm -f package-lock.json yarn.lock
+          rm -f package-lock.json yarn.lock .npmrc
           rm -rf node_modules artifacts/mobile/node_modules
-          # Instala dependencias con pnpm
           pnpm install
-          # Entra a la carpeta de la app
           cd artifacts/mobile
-          # Genera el proyecto nativo
-          npx expo prebuild --platform android --clean
-          # Compila el APK
-          cd android
-          ./gradlew assembleRelease
-    artifacts:
-      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
+          rm -rf .expo dist
+          npx expo export --platform android --output-dir dist
