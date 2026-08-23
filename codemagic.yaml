@@ -10,13 +10,13 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
-          corepack disable
-          rm -f package-lock.json yarn.lock .yarnrc
+          npm install -g pnpm --force
+          rm -f package-lock.json yarn.lock .npmrc
           rm -rf node_modules artifacts/mobile/node_modules
-          pnpm install --no-frozen-lockfile
+          pnpm install
           cd artifacts/mobile
           rm -rf .expo dist
-          NODE_OPTIONS=--max-old-space-size=4096 npx expo export --platform android --output-dir dist || grep -E "SyntaxError|Unable to resolve module|error:" -A 5 -B 5
+          NODE_OPTIONS=--max-old-space-size=4096 npx expo export --platform android --output-dir dist --no-minify
           npx expo prebuild --platform android --clean
           cd android
           ./gradlew assembleRelease
