@@ -10,13 +10,19 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
-          corepack disable
-          rm -f package-lock.json yarn.lock .yarnrc
+          # Instala pnpm globalmente en la máquina de Codemagic
+          npm install -g pnpm
+          # Limpia archivos de bloqueo antiguos
+          rm -f package-lock.json yarn.lock
           rm -rf node_modules artifacts/mobile/node_modules
-          pnpm install --no-frozen-lockfile
+          # Instala dependencias con pnpm
+          pnpm install
+          # Entra a la carpeta de la app
           cd artifacts/mobile
+          # Genera el proyecto nativo
           npx expo prebuild --platform android --clean
+          # Compila el APK
           cd android
           ./gradlew assembleRelease
     artifacts:
-      - '**/*.apk'
+      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
