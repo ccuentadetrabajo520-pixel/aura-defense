@@ -16,7 +16,7 @@ workflows:
           pnpm install --no-frozen-lockfile
           cd artifacts/mobile
           npx expo prebuild --platform android --clean
-          npx expo export --platform android --output-dir dist || exit 0
+          npx expo export --platform android --output-dir dist || exit 1
           cd android
           ./gradlew assembleRelease
     artifacts:
