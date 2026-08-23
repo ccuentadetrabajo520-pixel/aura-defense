@@ -10,12 +10,17 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
+          # Cleanup any lock files that confuse npm
+          rm -f package-lock.json
+          rm -f yarn.lock
+          # Install dependencies using pnpm from root
+          pnpm install
+          # Navigate to app folder
           cd artifacts/mobile
-          rm -rf node_modules yarn.lock package-lock.json
-          npm install --force
-          npx expo export --platform android --output-dir dist || exit 0
+          # Generate native project
           npx expo prebuild --platform android --clean
+          # Navigate to android and build
           cd android
-          ./gradlew assembleRelease --stacktrace --info
+          ./gradlew assembleRelease
     artifacts:
-      - '**/*.apk'
+      - artifacts/mobile/android/app/build/outputs/apk/release/*.apk
