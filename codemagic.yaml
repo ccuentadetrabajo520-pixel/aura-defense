@@ -14,7 +14,9 @@ workflows:
           rm -f package-lock.json yarn.lock .yarnrc
           rm -rf node_modules artifacts/mobile/node_modules
           pnpm install --no-frozen-lockfile
-          cd artifacts/mobile && npx expo export --platform android --output-dir dist
+          cd artifacts/mobile
+          rm -rf .expo dist
+          NODE_OPTIONS=--max-old-space-size=4096 npx expo export --platform android --output-dir dist || grep -E "SyntaxError|Unable to resolve module|error:" -A 5 -B 5
           npx expo prebuild --platform android --clean
           cd android
           ./gradlew assembleRelease
