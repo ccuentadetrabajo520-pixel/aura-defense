@@ -10,8 +10,8 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
-          # Instala pnpm globalmente en la máquina de Codemagic
-          npm install -g pnpm
+          # Forzar instalación global de pnpm (arregla el error EEXIST)
+          npm install -g pnpm --force
           # Limpia archivos de bloqueo antiguos
           rm -f package-lock.json yarn.lock
           rm -rf node_modules artifacts/mobile/node_modules
