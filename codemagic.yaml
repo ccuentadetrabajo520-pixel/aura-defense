@@ -10,10 +10,13 @@ workflows:
     scripts:
       - name: Build all in one step
         script: |
-          pnpm install --frozen-lockfile
+          corepack disable
+          rm -f package-lock.json yarn.lock .yarnrc
+          rm -rf node_modules artifacts/mobile/node_modules
+          pnpm install --no-frozen-lockfile
           cd artifacts/mobile
           npx expo prebuild --platform android --clean
           cd android
-          ./gradlew assembleRelease --stacktrace --info
+          ./gradlew assembleRelease
     artifacts:
       - '**/*.apk'
