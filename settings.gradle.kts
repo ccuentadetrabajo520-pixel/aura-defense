@@ -1,23 +1,20 @@
-pluginManagement {
-    repositories {
-        google()
-        mavenCentral()
-        gradlePluginPortal()
-    }
+import org.gradle.api.initialization.resolve.RepositoriesMode
 
-    plugins {
-        id("com.android.application") version "8.2.2"
-        id("org.jetbrains.kotlin.android") version "1.9.22"
-    }
+pluginManagement {
+        repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+        }
 }
 
 dependencyResolutionManagement {
-    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-    repositories {
-        google()
-        mavenCentral()
-    }
+        repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+        repositories {
+                google()
+                mavenCentral()
+        }
 }
 
-rootProject.name = "Aura Defense"
+rootProject.name = "AuraDefense"
 include(":app")
