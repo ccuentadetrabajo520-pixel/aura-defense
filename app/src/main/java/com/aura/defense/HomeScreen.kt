@@ -48,8 +48,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import com.aura.defense.data.SecurityFinding
 import com.aura.defense.data.AuraSecurityEngine
+import com.aura.defense.data.DeviceTelemetry
+import com.aura.defense.data.SecurityFinding
 
 @Composable
 internal fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit) {
@@ -126,7 +127,7 @@ internal fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Un
 }
 
 @Composable
-private fun TelemetryCard(telemetry: com.aura.defense.data.DeviceTelemetry) {
+private fun TelemetryCard(telemetry: DeviceTelemetry) {
     Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(5.dp)) {
             Text("TELEMETRÍA DEL DISPOSITIVO", color = MaterialTheme.colorScheme.secondary)
