@@ -7,12 +7,34 @@ android {
     namespace = "com.aura.defense"
     compileSdk = 34
 
+    flavorDimensions += "version"
+
+    productFlavors {
+        create("privateRelease") {
+            dimension = "version"
+            applicationIdSuffix = ".private"
+        }
+        create("playRelease") {
+            dimension = "version"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.aura.defense"
         minSdk = 24
         targetSdk = 34
         versionCode = 1
         versionName = "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            isMinifyEnabled = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+        }
     }
 
     compileOptions {
