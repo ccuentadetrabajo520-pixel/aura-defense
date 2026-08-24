@@ -2,7 +2,6 @@ package com.aura.defense.ui.screens
 
 import android.app.ActivityNotFoundException
 import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.aura.defense.data.AuraSecurityEngine
@@ -18,17 +18,15 @@ import com.aura.defense.data.SecurityFinding
 
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit = {}) {
+    val context = LocalContext.current
     var auraId by remember { mutableStateOf("AURA-001") }
-    val posture by produceState(initialValue = AuraSecurityEngine.evaluate(LocalContext.current)) {
-        value = AuraSecurityEngine.evaluate(LocalContext.current)
-    }
+    val posture by remember { mutableStateOf(AuraSecurityEngine.evaluate(context)) }
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Título y Chip ID
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -46,7 +44,6 @@ fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit = {}) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Score y Estado
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Aura Score", style = MaterialTheme.typography.labelLarge)
@@ -70,9 +67,8 @@ fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit = {}) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Botón de Escanear
         Button(
-            onClick = { /* Re-evaluar */ },
+            onClick = { },
             modifier = Modifier.fillMaxWidth()
         ) {
             Text("ESCANEAR AHORA")
@@ -80,7 +76,6 @@ fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit = {}) 
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Hallazgos Críticos
         Text("Hallazgos Críticos", style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(8.dp))
         LazyColumn {
@@ -104,7 +99,7 @@ fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit = {}) 
                             Button(
                                 onClick = {
                                     try {
-                                        LocalContext.current.startActivity(Intent(intentAction))
+                                        context.startActivity(Intent(intentAction))
                                     } catch (_: ActivityNotFoundException) {
                                     }
                                 },
