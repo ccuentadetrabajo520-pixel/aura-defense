@@ -134,7 +134,9 @@ internal fun QrScannerScreen(onClose: () -> Unit) {
 private fun isUrl(value: String): Boolean {
     val normalized = if (value.contains("://")) value else "https://$value"
     val uri = runCatching { Uri.parse(normalized) }.getOrNull()
-    return uri?.scheme in setOf("http", "https") && !uri.host.isNullOrBlank()
+    val uriString = uri?.toString() ?: return false
+    val validatedUri = Uri.parse(uriString)
+    return validatedUri.scheme in setOf("http", "https") && !validatedUri.host.isNullOrBlank()
 }
 
 private fun verdictColor(verdict: String) = when {

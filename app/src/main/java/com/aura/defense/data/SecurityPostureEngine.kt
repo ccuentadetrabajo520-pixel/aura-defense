@@ -12,6 +12,7 @@ import android.os.Build
 import android.provider.Settings
 import java.util.Date
 
+private const val PRIVATE_DNS_MODE = Settings.Global.PRIVATE_DNS_MODE
 
 data class SecurityFinding(
     val title: String,
@@ -282,7 +283,7 @@ object SecurityPostureEngine {
 
     private fun isPrivateDnsActive(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
-        return Settings.Global.getString(context.contentResolver, Settings.Global.PRIVATE_DNS_MODE)
+        return Settings.Global.getString(context.contentResolver, PRIVATE_DNS_MODE)
             ?.lowercase()
             ?.let { it != "off" }
             ?: false
