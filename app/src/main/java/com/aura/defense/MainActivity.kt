@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AuraDefenseTheme(content: @Composable () -> Unit) {
+fun AuraDefenseTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
             background = Color(0xFF050A0C),
