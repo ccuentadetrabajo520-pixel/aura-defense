@@ -281,11 +281,11 @@ object AuraSecurityEngine {
 
     private fun isPrivateDnsActive(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
-        return Settings.Global.getString(context.contentResolver, Settings.Global.PRIVATE_DNS_MODE)
-            ?.lowercase()
-            ?.let { it != "off" }
-            ?: false
-    }
+return Settings.Global.getInt(
+    context.contentResolver,
+    Settings.Global.PRIVATE_DNS_MODE,
+    0
+) != 0
 
     private fun hasRecentSecurityPatch(): Boolean {
         val patch = Build.VERSION.SECURITY_PATCH
