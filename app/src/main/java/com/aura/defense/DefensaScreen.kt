@@ -24,11 +24,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aura.defense.data.ThreatRepository
 import com.aura.defense.services.AuraVpnService
 
 @Composable
 internal fun DefensaScreen(modifier: Modifier = Modifier) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val blockedDomainCount = remember(context) {
+        ThreatRepository.loadBlockedDomains(context.applicationContext).size
+    }
     var vpnEnabled by remember { mutableStateOf(AuraVpnService.isRunning) }
     var consentDenied by remember { mutableStateOf(false) }
     val consentLauncher = rememberLauncherForActivityResult(
@@ -87,7 +91,9 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
                 }
             }
         )
-        Text(if (vpnEnabled) "ACTIVO" else "INACTIVO", color = if (vpnEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, fontSize = 20.sp)
+        Text(if (vpnEnabled) "VPN ACTIVA" else "INACTIVA", color = if (vpnEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, fontSize = 20.sp)
+        Text("Lista de Amenazas", color = MaterialTheme.colorScheme.primary, fontSize = 18.sp)
+        Text("$blockedDomainCount dominios en la lista local", color = MaterialTheme.colorScheme.onSurface)
         if (consentDenied) {
             Text("El permiso de VPN es necesario para crear el túnel local. No se inició ninguna conexión porque rechazaste el consentimiento.")
         }
