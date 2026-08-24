@@ -1,8 +1,5 @@
 package com.aura.defense
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.provider.Settings
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -45,6 +42,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aura.defense.ui.screens.LinkAnalyzerScreen
+import com.aura.defense.ui.screens.NotificationGuardScreen
 import com.aura.defense.ui.screens.PasswordAuditorScreen
 import com.aura.defense.ui.screens.ReportsScreen
 
@@ -75,17 +73,12 @@ internal fun CentroAuraScreen() {
     when (selectedTool) {
         "Analizador de Enlaces" -> LinkAnalyzerScreen { selectedTool = null }
         "Auditor de Contraseñas" -> PasswordAuditorScreen { selectedTool = null }
+        "Notification Guard" -> NotificationGuardScreen { selectedTool = null }
         "Reportes" -> ReportsScreen { selectedTool = null }
         else -> CentroAuraMenu(
             onItemClick = { item ->
                 if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "Reportes")) {
                     selectedTool = item.label
-                } else if (item.label == "Notification Guard") {
-                    try {
-                        context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                    } catch (_: ActivityNotFoundException) {
-                        Toast.makeText(context, "Ajustes no disponibles en este dispositivo", Toast.LENGTH_SHORT).show()
-                    }
                 } else {
                     Toast.makeText(context, "Función en desarrollo", Toast.LENGTH_SHORT).show()
                 }
