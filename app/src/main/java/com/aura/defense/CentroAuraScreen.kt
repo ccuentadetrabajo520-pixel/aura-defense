@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.aura.defense.ui.screens.LinkAnalyzerScreen
 import com.aura.defense.ui.screens.NotificationGuardScreen
 import com.aura.defense.ui.screens.PasswordAuditorScreen
+import com.aura.defense.ui.screens.QrScannerScreen
 import com.aura.defense.ui.screens.ReportsScreen
 
 private data class CentroAuraItem(val label: String, val icon: ImageVector)
@@ -73,11 +74,12 @@ internal fun CentroAuraScreen() {
     when (selectedTool) {
         "Analizador de Enlaces" -> LinkAnalyzerScreen { selectedTool = null }
         "Auditor de Contraseñas" -> PasswordAuditorScreen { selectedTool = null }
+        "QR Anti-Phishing" -> QrScannerScreen { selectedTool = null }
         "Notification Guard" -> NotificationGuardScreen { selectedTool = null }
         "Reportes" -> ReportsScreen { selectedTool = null }
         else -> CentroAuraMenu(
             onItemClick = { item ->
-                if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "Reportes")) {
+                if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "QR Anti-Phishing", "Reportes")) {
                     selectedTool = item.label
                 } else {
                     Toast.makeText(context, "Función en desarrollo", Toast.LENGTH_SHORT).show()
