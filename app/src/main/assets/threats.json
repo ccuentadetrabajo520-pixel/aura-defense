@@ -1,0 +1,30 @@
+[
+  {
+    "domain": "phishing.test",
+    "category": "phishing",
+    "severity": "critical",
+    "source": "local",
+    "updatedAt": "2024-01-01"
+  },
+  {
+    "domain": "malware.test",
+    "category": "malware",
+    "severity": "high",
+    "source": "local",
+    "updatedAt": "2024-01-01"
+  },
+  {
+    "domain": "scam-wallet.test",
+    "category": "crypto_scam",
+    "severity": "high",
+    "source": "local",
+    "updatedAt": "2024-01-01"
+  },
+  {
+    "domain": "ads.test",
+    "category": "ads",
+    "severity": "low",
+    "source": "local",
+    "updatedAt": "2024-01-01"
+  }
+]

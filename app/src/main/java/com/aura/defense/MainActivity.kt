@@ -97,7 +97,7 @@ private fun AuraDefenseApp() {
     )
 
     NavHost(navController = navController, startDestination = "inicio") {
-        composable("centro_aura") { AuraCenterScreen() }
+        composable("centro_aura") { CentroAuraScreen() }
         tabs.forEach { tab ->
             composable(tab.route) {
                 Scaffold(
@@ -123,6 +123,8 @@ private fun AuraDefenseApp() {
                 ) { paddingValues ->
                     if (tab.route == "inicio") {
                         HomeScreen(Modifier.padding(paddingValues)) { navController.navigate("centro_aura") }
+                    } else if (tab.route == "auras") {
+                        AurasScreen(Modifier.padding(paddingValues))
                     } else {
                         PlaceholderTab(tab.label, Modifier.padding(paddingValues))
                     }
@@ -133,76 +135,6 @@ private fun AuraDefenseApp() {
 }
 
 private data class BottomTab(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
-
-@Composable
-private fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit) {
-    var auraId by remember { mutableStateOf("AURA-001") }
-    Column(
-        modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(horizontal = 24.dp, vertical = 18.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFF102126), modifier = Modifier.weight(1f)) {
-                TextField(
-                    value = auraId,
-                    onValueChange = { auraId = it },
-                    singleLine = true,
-                    label = { Text("ID Aura") },
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = Color.Transparent,
-                        unfocusedContainerColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent
-                    )
-                )
-            }
-            IconButton(onClick = onSettingsClick) {
-                Icon(Icons.Filled.Settings, contentDescription = "Centro Aura", tint = MaterialTheme.colorScheme.primary)
-            }
-        }
-        Spacer(Modifier.height(34.dp))
-        Text("AURA DEFENSE", fontSize = 32.sp, color = MaterialTheme.colorScheme.primary)
-        Spacer(Modifier.height(6.dp))
-        Text("SIN ESCANEO", color = MaterialTheme.colorScheme.secondary, letterSpacing = 2.sp)
-        Spacer(Modifier.height(28.dp))
-        RadarPlaceholder(Modifier.size(280.dp))
-        Spacer(Modifier.weight(1f))
-        Button(
-            onClick = { },
-            modifier = Modifier.fillMaxWidth().height(58.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color(0xFF031311))
-        ) { Text("ESCANEAR AHORA", fontSize = 16.sp) }
-        Spacer(Modifier.height(12.dp))
-    }
-}
-
-@Composable
-private fun RadarPlaceholder(modifier: Modifier = Modifier) {
-    val transition = rememberInfiniteTransition(label = "radar")
-    val rotation by transition.animateFloat(0f, 360f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "radarRotation")
-    Canvas(modifier) {
-        val center = Offset(size.width / 2, size.height / 2)
-        val radius = size.minDimension / 2 - 8.dp.toPx()
-        for (scale in listOf(1f, .72f, .44f)) {
-            drawCircle(Color(0xFF1B4D4C), radius * scale, center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
-        }
-        drawLine(Color(0xFF25F4D0), center, Offset(center.x, center.y - radius), 3.dp.toPx(), StrokeCap.Round)
-        rotate(rotation, center) { drawLine(Color(0x9925F4D0), center, Offset(center.x, center.y - radius), 8.dp.toPx(), StrokeCap.Round) }
-        drawCircle(Color(0xFFB8F72E), 5.dp.toPx(), center)
-    }
-}
-
-@Composable
-private fun AuraCenterScreen() {
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Text("Centro Aura", color = MaterialTheme.colorScheme.primary, fontSize = 28.sp)
-        Spacer(Modifier.height(16.dp))
-        Text("Centro Aura (Próximamente)")
-        Spacer(Modifier.height(32.dp))
-        Text("ID de usuario", color = MaterialTheme.colorScheme.secondary)
-    }
-}
 
 @Composable
 private fun PlaceholderTab(title: String, modifier: Modifier = Modifier) {
