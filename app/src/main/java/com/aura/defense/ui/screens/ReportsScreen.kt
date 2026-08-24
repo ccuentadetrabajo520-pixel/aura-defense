@@ -1,57 +1,50 @@
 package com.aura.defense.ui.screens
 
-import android.widget.Toast
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.aura.defense.data.AppScannerRepository
 import com.aura.defense.data.AuraSecurityEngine
-import com.aura.defense.data.DeviceTelemetry
-import com.aura.defense.data.SecurityFinding
-import com.aura.defense.data.SecurityPostureResult
 import com.aura.defense.tools.ReportGenerator
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
-internal fun ReportsScreen(onClose: () -> Unit) {
+fun ReportsScreen() {
     val context = LocalContext.current
-    val posture = remember(context) { AuraSecurityEngine.evaluate(context) }
-    val apps = remember(context) { AppScannerRepository(context.applicationContext).scanVisibleApps() }
-    val riskyApps = apps.filter { it.hasSensitivePermissions || it.isDebuggable || it.requestsInstallPackages }
-    val txtReport = remember(posture, riskyApps) { ReportGenerator.generateTxtReport(posture, riskyApps) }
-    val jsonReport = remember(posture, riskyApps) { ReportGenerator.generateJsonReport(posture, riskyApps) }
+    var reportText by remember { mutableStateOf("") }
 
     Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp)
     ) {
-        Text("Reportes")
-        Text("Informe actual: score ${posture.score}/100, ${riskyApps.size} aplicaciones de riesgo.")
+        Text("Reportes de Seguridad", style = MaterialTheme.typography.titleLarge)
+        Spacer(modifier = Modifier.height(16.dp))
+
         Button(
             onClick = {
-                val file = ReportGenerator.exportTxtReport(context, txtReport)
-                Toast.makeText(context, "TXT guardado en ${file.name}", Toast.LENGTH_SHORT).show()
+                val result = AuraSecurityEngine.evaluate(context)
+                reportText = ReportGenerator.generateTxtReport(result)
+                Toast.makeText(context, "Reporte generado", Toast.LENGTH_SHORT).show()
             },
             modifier = Modifier.fillMaxWidth()
-        ) { Text("Exportar TXT") }
-        Button(
-            onClick = {
-                val file = ReportGenerator.exportJsonReport(context, jsonReport)
-                Toast.makeText(context, "JSON guardado en ${file.name}", Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) { Text("Exportar JSON") }
-        OutlinedButton(onClick = onClose, modifier = Modifier.fillMaxWidth()) {
-            Text("Cerrar")
+        ) {
+            Text("Generar Reporte TXT")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        if (reportText.isNotEmpty()) {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = reportText,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
     }
 }
