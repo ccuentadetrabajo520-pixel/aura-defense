@@ -31,12 +31,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.aura.defense.ui.screens.LinkAnalyzerScreen
+import com.aura.defense.ui.screens.PasswordAuditorScreen
+import com.aura.defense.ui.screens.ReportsScreen
 
 private data class CentroAuraItem(val label: String, val icon: ImageVector)
 
@@ -60,6 +67,26 @@ private val centroAuraItems = listOf(
 @Composable
 internal fun CentroAuraScreen() {
     val context = LocalContext.current
+    var selectedTool by remember { mutableStateOf<String?>(null) }
+
+    when (selectedTool) {
+        "Analizador de Enlaces" -> LinkAnalyzerScreen { selectedTool = null }
+        "Auditor de Contraseñas" -> PasswordAuditorScreen { selectedTool = null }
+        "Reportes" -> ReportsScreen { selectedTool = null }
+        else -> CentroAuraMenu(
+            onItemClick = { item ->
+                if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "Reportes")) {
+                    selectedTool = item.label
+                } else {
+                    Toast.makeText(context, "Función en desarrollo", Toast.LENGTH_SHORT).show()
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun CentroAuraMenu(onItemClick: (CentroAuraItem) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 18.dp)
     ) {
@@ -71,9 +98,7 @@ internal fun CentroAuraScreen() {
         ) {
             items(centroAuraItems) { item ->
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        Toast.makeText(context, "Función en desarrollo", Toast.LENGTH_SHORT).show()
-                    },
+                    modifier = Modifier.fillMaxWidth().clickable { onItemClick(item) },
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Row(
