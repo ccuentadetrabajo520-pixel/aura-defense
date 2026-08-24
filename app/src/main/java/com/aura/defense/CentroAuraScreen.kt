@@ -46,6 +46,8 @@ import com.aura.defense.ui.screens.NotificationGuardScreen
 import com.aura.defense.ui.screens.PasswordAuditorScreen
 import com.aura.defense.ui.screens.QrScannerScreen
 import com.aura.defense.ui.screens.ReportsScreen
+import com.aura.defense.ui.screens.VaultScreen
+import com.aura.defense.ui.screens.WorkManagerScreen
 
 private data class CentroAuraItem(val label: String, val icon: ImageVector)
 
@@ -75,11 +77,13 @@ internal fun CentroAuraScreen() {
         "Analizador de Enlaces" -> LinkAnalyzerScreen { selectedTool = null }
         "Auditor de Contraseñas" -> PasswordAuditorScreen { selectedTool = null }
         "QR Anti-Phishing" -> QrScannerScreen { selectedTool = null }
+        "Vault Cifrado" -> VaultScreen { selectedTool = null }
+        "WorkManager" -> WorkManagerScreen { selectedTool = null }
         "Notification Guard" -> NotificationGuardScreen { selectedTool = null }
         "Reportes" -> ReportsScreen { selectedTool = null }
         else -> CentroAuraMenu(
             onItemClick = { item ->
-                if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "QR Anti-Phishing", "Reportes")) {
+                if (item.label in setOf("Analizador de Enlaces", "Auditor de Contraseñas", "QR Anti-Phishing", "Reportes", "Vault Cifrado", "WorkManager")) {
                     selectedTool = item.label
                 } else {
                     Toast.makeText(context, "Función en desarrollo", Toast.LENGTH_SHORT).show()
