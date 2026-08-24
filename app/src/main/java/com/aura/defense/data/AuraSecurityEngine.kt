@@ -43,7 +43,7 @@ data class SecurityPostureResult(
     val telemetry: DeviceTelemetry
 )
 
-object SecurityPostureEngine {
+object AuraSecurityEngine {
     fun evaluate(context: Context): SecurityPostureResult {
         val findings = mutableListOf<SecurityFinding>()
         var score = 100
