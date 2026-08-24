@@ -49,13 +49,13 @@ import androidx.compose.ui.unit.sp
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import com.aura.defense.data.SecurityFinding
-import com.aura.defense.data.SecurityPostureEngine
+import com.aura.defense.data.AuraSecurityEngine
 
 @Composable
 internal fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Unit) {
     var auraId by remember { mutableStateOf("AURA-001") }
     val context = LocalContext.current
-    val posture = remember(context) { SecurityPostureEngine.evaluate(context) }
+    val posture = remember(context) { AuraSecurityEngine.evaluate(context) }
     val topFindings = posture.findings.sortedBy { severityRank(it.severity) }.take(3)
 
     LazyColumn(

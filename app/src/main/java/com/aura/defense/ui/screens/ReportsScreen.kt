@@ -15,13 +15,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.aura.defense.data.AppScannerRepository
-import com.aura.defense.data.SecurityPostureEngine
+import com.aura.defense.data.AuraSecurityEngine
 import com.aura.defense.tools.ReportGenerator
 
 @Composable
 internal fun ReportsScreen(onClose: () -> Unit) {
     val context = LocalContext.current
-    val posture = remember(context) { SecurityPostureEngine.evaluate(context) }
+    val posture = remember(context) { AuraSecurityEngine.evaluate(context) }
     val apps = remember(context) { AppScannerRepository(context.applicationContext).scanVisibleApps() }
     val riskyApps = apps.filter { it.hasSensitivePermissions || it.isDebuggable || it.requestsInstallPackages }
     val txtReport = remember(posture, riskyApps) { ReportGenerator.generateTxtReport(posture, riskyApps) }
