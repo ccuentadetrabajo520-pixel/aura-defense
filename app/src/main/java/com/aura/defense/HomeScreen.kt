@@ -19,8 +19,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -90,12 +88,15 @@ internal fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Un
             Text("AURA DEFENSE", fontSize = 32.sp, color = MaterialTheme.colorScheme.primary)
             Text("SIN ESCANEO", color = MaterialTheme.colorScheme.secondary, letterSpacing = 2.sp)
         }
-        item { RadarPlaceholder(Modifier.size(220.dp)) }
+        item {
+            val hasRealThreat = posture.findings.any { finding -> finding.severity == "Critical" || finding.severity == "High" }
+            RadarPlaceholder(Modifier.size(220.dp), statusColor(posture.score), hasRealThreat)
+        }
         item {
             Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
                 Column(modifier = Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("AURA SCORE", color = MaterialTheme.colorScheme.secondary, letterSpacing = 2.sp)
-                    Text("${posture.score}", color = MaterialTheme.colorScheme.primary, fontSize = 56.sp)
+                    Text("${posture.score}", color = statusColor(posture.score), fontSize = 56.sp)
                     Text(postureStatus(posture.score), color = statusColor(posture.score), fontSize = 18.sp)
                 }
             }
@@ -111,15 +112,16 @@ internal fun HomeScreen(modifier: Modifier = Modifier, onSettingsClick: () -> Un
                     }
                 }
             }
+        } else {
+            item {
+                Text(
+                    "No se detectaron hallazgos de seguridad en esta evaluación.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
-        item {
-            HomeActionButton("ESCANEAR AHORA")
-            Spacer(Modifier.height(2.dp))
-            HomeActionButton("ACTIVAR DEFENSA VPN")
-            Spacer(Modifier.height(2.dp))
-            HomeActionButton("MODO EMERGENCIA")
-            Spacer(Modifier.height(18.dp))
-        }
+        item { Spacer(Modifier.height(18.dp)) }
     }
 }
 
@@ -173,7 +175,7 @@ private fun statusColor(score: Int): Color = when {
 }
 
 private fun postureStatus(score: Int): String = when {
-    score >= 85 -> "PROTEGIDO"
+    score >= 85 -> "POSTURA FAVORABLE"
     score >= 60 -> "PROTECCIÓN PARCIAL"
     else -> "RIESGO ALTO"
 }
@@ -181,28 +183,24 @@ private fun postureStatus(score: Int): String = when {
 private fun formatRam(bytes: Long): String = "%.1f GB".format(bytes / (1024.0 * 1024.0 * 1024.0))
 
 @Composable
-private fun HomeActionButton(label: String) {
-    Button(
-        onClick = { },
-        modifier = Modifier.fillMaxWidth().height(58.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary, contentColor = Color(0xFF031311))
-    ) { Text(label, fontSize = 16.sp) }
-}
-
-@Composable
-private fun RadarPlaceholder(modifier: Modifier = Modifier) {
+private fun RadarPlaceholder(modifier: Modifier = Modifier, color: Color, pulse: Boolean) {
     val transition = rememberInfiniteTransition(label = "radar")
     val rotation by transition.animateFloat(0f, 360f, infiniteRepeatable(tween(2400, easing = LinearEasing), RepeatMode.Restart), label = "radarRotation")
+    val pulseScale by transition.animateFloat(
+        initialValue = 1f,
+        targetValue = if (pulse) 1.14f else 1f,
+        animationSpec = infiniteRepeatable(tween(850), RepeatMode.Reverse),
+        label = "radarPulse"
+    )
     Canvas(modifier) {
         val center = Offset(size.width / 2, size.height / 2)
         val radius = size.minDimension / 2 - 8.dp.toPx()
         for (scale in listOf(1f, .72f, .44f)) {
-            drawCircle(Color(0xFF1B4D4C), radius * scale, center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
+            drawCircle(color.copy(alpha = .55f), radius * scale, center, style = androidx.compose.ui.graphics.drawscope.Stroke(1.dp.toPx()))
         }
-        drawLine(Color(0xFF25F4D0), center, Offset(center.x, center.y - radius), 3.dp.toPx(), StrokeCap.Round)
-        rotate(rotation, center) { drawLine(Color(0x9925F4D0), center, Offset(center.x, center.y - radius), 8.dp.toPx(), StrokeCap.Round) }
-        drawCircle(Color(0xFFB8F72E), 5.dp.toPx(), center)
+        drawLine(color, center, Offset(center.x, center.y - radius), 3.dp.toPx(), StrokeCap.Round)
+        rotate(rotation, center) { drawLine(color.copy(alpha = .6f), center, Offset(center.x, center.y - radius), 8.dp.toPx(), StrokeCap.Round) }
+        drawCircle(color, 5.dp.toPx() * pulseScale, center)
     }
 }
 

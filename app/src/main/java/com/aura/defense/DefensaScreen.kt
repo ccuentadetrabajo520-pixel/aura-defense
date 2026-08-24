@@ -3,7 +3,10 @@ package com.aura.defense
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
 import android.net.VpnService
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -11,11 +14,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.aura.defense.data.ThreatRepository
 import com.aura.defense.services.AuraVpnService
+import kotlinx.coroutines.delay
 
 @Composable
 internal fun DefensaScreen(modifier: Modifier = Modifier) {
@@ -33,14 +43,14 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
     val blockedDomainCount = remember(context) {
         ThreatRepository.loadBlockedDomains(context.applicationContext).size
     }
-    var vpnEnabled by remember { mutableStateOf(AuraVpnService.isRunning) }
+    var vpnEnabled by remember { mutableStateOf(isVpnActive(context)) }
+    var privateDnsEnabled by remember { mutableStateOf(isPrivateDnsActive(context)) }
     var consentDenied by remember { mutableStateOf(false) }
     val consentLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             startVpn(context)
-            vpnEnabled = true
             consentDenied = false
         } else {
             vpnEnabled = false
@@ -48,12 +58,28 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    LaunchedEffect(Unit) {
+        while (true) {
+            vpnEnabled = isVpnActive(context)
+            privateDnsEnabled = isPrivateDnsActive(context)
+            delay(1_000)
+        }
+    }
+
+    val protectionActive = vpnEnabled && privateDnsEnabled
+
     Column(
         modifier = modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text("Defensa VPN", color = MaterialTheme.colorScheme.primary, fontSize = 28.sp)
+        Icon(
+            imageVector = if (protectionActive) Icons.Filled.Shield else Icons.Outlined.Shield,
+            contentDescription = if (protectionActive) "Protección completa activa" else "Protección incompleta",
+            tint = if (protectionActive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(72.dp)
+        )
         Button(
             onClick = {
                 if (vpnEnabled) {
@@ -63,7 +89,6 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
                     val prepareIntent = VpnService.prepare(context)
                     if (prepareIntent == null) {
                         startVpn(context)
-                        vpnEnabled = true
                         consentDenied = false
                     } else {
                         consentLauncher.launch(prepareIntent)
@@ -81,7 +106,6 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
                     val prepareIntent = VpnService.prepare(context)
                     if (prepareIntent == null) {
                         startVpn(context)
-                        vpnEnabled = true
                     } else {
                         consentLauncher.launch(prepareIntent)
                     }
@@ -91,7 +115,11 @@ internal fun DefensaScreen(modifier: Modifier = Modifier) {
                 }
             }
         )
-        Text(if (vpnEnabled) "VPN ACTIVA" else "INACTIVA", color = if (vpnEnabled) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error, fontSize = 20.sp)
+        Text(
+            if (protectionActive) "PROTECCIÓN ACTIVA" else "PROTECCIÓN INCOMPLETA",
+            color = if (protectionActive) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error,
+            fontSize = 20.sp
+        )
         Text("Lista de Amenazas", color = MaterialTheme.colorScheme.primary, fontSize = 18.sp)
         Text("$blockedDomainCount dominios en la lista local", color = MaterialTheme.colorScheme.onSurface)
         if (consentDenied) {
@@ -106,4 +134,15 @@ private fun startVpn(context: Context) {
 
 private fun stopVpn(context: Context) {
     context.stopService(Intent(context, AuraVpnService::class.java))
+}
+
+private fun isVpnActive(context: Context): Boolean {
+    val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
+    val capabilities = connectivityManager?.activeNetwork?.let(connectivityManager::getNetworkCapabilities)
+    return capabilities?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+}
+
+private fun isPrivateDnsActive(context: Context): Boolean {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return false
+    return Settings.Global.getString(context.contentResolver, "private_dns_mode") in setOf("hostname", "opportunistic")
 }

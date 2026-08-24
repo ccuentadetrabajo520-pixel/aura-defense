@@ -46,8 +46,17 @@ internal fun AppsScreen(modifier: Modifier = Modifier) {
             Text("Aplicaciones instaladas", color = MaterialTheme.colorScheme.primary, fontSize = 28.sp)
             Text("${apps.size} aplicaciones visibles", color = MaterialTheme.colorScheme.secondary)
         }
-        items(apps, key = { app -> app.packageName }) { app ->
-            AppCard(app)
+        if (apps.isEmpty()) {
+            item {
+                Text(
+                    "No se encontraron aplicaciones visibles en este dispositivo.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            items(apps, key = { app -> app.packageName }) { app ->
+                AppCard(app)
+            }
         }
     }
 }
