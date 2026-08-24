@@ -16,6 +16,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.aura.defense.data.AppScannerRepository
 import com.aura.defense.data.AuraSecurityEngine
+import com.aura.defense.data.DeviceTelemetry
+import com.aura.defense.data.SecurityFinding
+import com.aura.defense.data.SecurityPostureResult
 import com.aura.defense.tools.ReportGenerator
 
 @Composable

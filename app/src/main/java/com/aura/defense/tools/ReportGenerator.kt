@@ -2,6 +2,8 @@ package com.aura.defense.tools
 
 import android.content.Context
 import com.aura.defense.data.AppInfo
+import com.aura.defense.data.AuraSecurityEngine
+import com.aura.defense.data.DeviceTelemetry
 import com.aura.defense.data.SecurityFinding
 import com.aura.defense.data.SecurityPostureResult
 import org.json.JSONArray
