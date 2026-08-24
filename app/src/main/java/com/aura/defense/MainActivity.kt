@@ -123,6 +123,8 @@ private fun AuraDefenseApp() {
                 ) { paddingValues ->
                     if (tab.route == "inicio") {
                         HomeScreen(Modifier.padding(paddingValues)) { navController.navigate("centro_aura") }
+                    } else if (tab.route == "auras") {
+                        AurasScreen(Modifier.padding(paddingValues))
                     } else {
                         PlaceholderTab(tab.label, Modifier.padding(paddingValues))
                     }
